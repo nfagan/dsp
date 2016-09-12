@@ -15,6 +15,10 @@ take_mean = params.takeMean;
 fs = obj.fs;
 signals = obj.data;
 
+if ~iscell(signals)
+    signals = {signals};
+end
+
 nw = (n_tapers + 1)/2;
 
 for i = 1:length(signals);

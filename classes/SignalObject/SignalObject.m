@@ -55,6 +55,30 @@ classdef SignalObject < DataObject
         function obj = minus(obj,b)
             obj = SignalObject__subraction(obj,b);
         end
+        
+        %{
+            subscript reference / assignment
+        %}
+        
+        %   - reference
+        
+        function obj = subsref(obj,varargin)
+            fs = obj.fs; %#ok<PROPLC>
+            obj = subsref@DataObject(obj,varargin{:});
+            if isa(obj,'DataObject')
+                obj = SignalObject(obj,fs); %#ok<PROPLC>
+            end
+        end
+        
+        %   - assignment
+        
+        function obj = subsasgn(obj,varargin)
+            fs = obj.fs; %#ok<PROPLC>
+            obj = subsasgn@DataObject(obj,varargin{:});
+            if isa(obj,'DataObject')
+                obj = SignalObject(obj,fs); %#ok<PROPLC>
+            end
+        end
             
     end
     

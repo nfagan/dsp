@@ -4,8 +4,8 @@ if ~isa(b,'SignalObject')
     error('The subtractor must be a signal object.');
 end
 
-if ~labeleq(a,b)
-    error('Labels don''t match between signal objects');
+if count(a,1) ~= count(b,1)
+    error('Dimensions don''t match between signal objects');
 end
 
 if ~strcmp(a.dtype,b.dtype)
