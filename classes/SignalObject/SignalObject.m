@@ -25,6 +25,36 @@ classdef SignalObject < DataObject
         function obj = downsample(obj,new_fs)
             obj = SignalObject__downsample(obj,new_fs);
         end
+        
+        %{
+            signal processing
+        %}
+        
+        %   - raw power
+        
+        function [pow, freqs] = raw_power(obj,varargin)
+            [pow, freqs] = SignalObject__raw_power(obj,varargin{:});
+        end
+        
+        %   - normalized power
+        
+        function [pow, freqs] = norm_power(obj,varargin)
+            [pow, freqs] = SignalObject__norm_power(obj,varargin{:});
+        end
+        
+        %   - coherence
+        
+        function [coh, freqs] = coherence(obj,varargin)
+            [coh, freqs] = SignalObject__coherence(obj,varargin{:});
+        end
+        
+        %{
+            overloaded operations
+        %}
+        
+        function obj = minus(obj,b)
+            obj = SignalObject__subraction(obj,b);
+        end
             
     end
     
