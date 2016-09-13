@@ -4,8 +4,8 @@ params = struct(...
     'takeMean', true ...
 );
 
-params = parsestruct(params,varargin);
 params = paraminclude('Params__signal_processing.mat',params);
+params = parsestruct(params,varargin);
 
 n_tapers = params.nMultitapers;
 method = params.method;
