@@ -1,23 +1,37 @@
-function store_norm_power = analysis__norm_power(signals)
+function store_norm_power = analysis__norm_power(target,base)
 
 norm_method = 'divide';
 norm_epoch = 'magcue';
 
 within = {'regions','trialtypes','outcomes','epochs','administration'};
 
-[indices, combs] = getindices(signals,within);
+%{
+    separate reference electrode signals
+%}
+
+ref_target = target(target == 'ref');
+ref_base = base(base == 'ref');
+
+target = target(target ~= 'ref'); 
+base = base(base ~= 'ref');
+
+[indices, combs] = getindices(target,within);
 
 region_ind = strcmp(within,'regions');
 epoch_ind = strcmp(within,'epochs');
 
+store_norm_power = DataObject();
+
 for i = 1:length(indices)
     
-    to_norm = signals(indices{i});
-    norm_by = signals(signals == [combs(i,~epoch_ind) {norm_epoch}]);
+    fprintf('\nProcessing %d of %d',i,length(indices));
     
-    ref_to_norm = signals(signals == [combs(i,~region_ind) {'ref'}]);
-    ref_to_norm_by = signals(signals == ...
-        [combs(i,~(region_ind | epoch_ind)) {norm_epoch} {'ref'}]);
+    to_norm = target(indices{i});
+    norm_by = base(base == [combs(i,~epoch_ind) {norm_epoch}]);
+    
+    ref_to_norm = ref_target(ref_target == [combs(i,~region_ind)]);
+    ref_to_norm_by = ref_base(ref_base == ...
+        [combs(i,~(region_ind | epoch_ind)) {norm_epoch}]);
     
     to_norm = to_norm - ref_to_norm;
     norm_by = norm_by - ref_to_norm_by;
@@ -26,11 +40,7 @@ for i = 1:length(indices)
     
     labels = labelbuilder(to_norm,combs(i,:));
     
-    if i == 1
-        store_norm_power = DataObject({power},labels);
-    else
-        store_norm_power = [store_norm_power; DataObject({power},labels)];
-    end
+    store_norm_power = [store_norm_power; DataObject({power},labels)];
     
 end
 

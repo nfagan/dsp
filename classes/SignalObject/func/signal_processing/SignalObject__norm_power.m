@@ -1,7 +1,7 @@
 function [power,freqs] = SignalObject__norm_power(to_norm,baseline,varargin)
 
 params = struct(...
-    'normMethod','subtract', ...
+    'normMethod','divide', ...
     'trialByTrial',false ...
     );
 
@@ -26,7 +26,7 @@ if ~params.trialByTrial
 end
 
 power = zeros(length(freqs),length(to_norm));
-% power = cell(1,length(to_norm));
+
 for i = 1:count(to_norm,2);
     
     [to_norm_power,freqs] = raw_power(to_norm(:,i),passed_params{:});
@@ -43,7 +43,6 @@ for i = 1:count(to_norm,2);
     end
     
     power(:,i) = mean(normPower,2); % Store per-window
-%     power{i} = normPower;
     
 end
     

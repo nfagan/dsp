@@ -11,14 +11,18 @@ if ~isa(b_signals,'SignalObject')
     error('The second input must be a signal object');
 end
 
-a_signals = a_signals.data;
-b_signals = b_signals.data;
+fs = a_signals.fs;
+
+if fs ~= b_signals.fs;
+    error('Sampling rates must match between objects');
+end
+
+a_signals = windowconcat(a_signals);
+b_signals = windowconcat(b_signals);
 
 take_mean = params.takeMean;
 % max_freq = params.maxFreq;
 freqs = params.freqs;
-
-fs = obj.fs;
 
 for i = 1:length(a_signals);
     one_window_a = a_signals{i};

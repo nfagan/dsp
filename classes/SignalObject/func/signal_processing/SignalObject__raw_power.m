@@ -7,17 +7,22 @@ params = struct(...
 params = paraminclude('Params__signal_processing.mat',params);
 params = parsestruct(params,varargin);
 
+%   Parse inputs from params struct
+
 n_tapers = params.nMultitapers;
 method = params.method;
 freqs = params.freqs;
 take_mean = params.takeMean;
 
-fs = obj.fs;
-signals = obj.data;
+%   Concatenate signals if they are windowed
 
-if ~iscell(signals)
-    signals = {signals};
+if strcmp(obj.dtype,'cell')
+    signals = windowconcat(obj);
+else
+    signals = obj.data;
 end
+
+fs = obj.fs;
 
 nw = (n_tapers + 1)/2;
 

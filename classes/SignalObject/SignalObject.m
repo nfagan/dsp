@@ -49,11 +49,15 @@ classdef SignalObject < DataObject
         end
         
         %{
-            overloaded operations
+            operations
         %}
         
         function obj = minus(obj,b)
             obj = SignalObject__subraction(obj,b);
+        end
+        
+        function unwindowed = windowconcat(obj)
+            unwindowed = SignalObject__windowconcat(obj);
         end
         
         %{
