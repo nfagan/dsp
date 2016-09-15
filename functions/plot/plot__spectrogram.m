@@ -5,10 +5,12 @@ params = struct(...
     'smooth',false, ...
     'addGaussian',true, ...
     'timeSeries', [], ...
+    'fromTo', [], ...
     'savePlot', false, ...
     'savePath', [], ...
     'xLabel', 'Time (ms)', ...
-    'yLabel', [] ...
+    'yLabel', [], ...
+    'title', [] ...
 );
 
 params = paraminclude('Params__signal_processing.mat',params);
@@ -25,6 +27,13 @@ freqs = params.freqs;
 max_freq = params.maxFreq;
 save_plot = params.savePlot;
 save_path = params.savePath;
+from_to = params.fromTo;
+
+%   - account for empty inputs
+
+if isempty(time_series)
+    time_series = -1000:50:1000;
+end
 
 %   data
 
@@ -41,6 +50,22 @@ freqs = freqs(ind); data = data(ind,:);
 freqs = repmat(freqs',1,size(data,2));
 
 freqs = flipud(freqs); data = flipud(data);
+
+%   - remove out of time-bounds data based on <from_to>
+
+if ~isempty(from_to)
+    from = find(time_series == from_to(1));
+    to = find(time_series == from_to(2));
+    
+    if isempty(from) || isempty(to)
+        error('Couldn''t find the start or end time');
+    end
+    
+    time_series = time_series(from:to);
+    data = data(:,from:to);
+    freqs = freqs(:,from:to);
+    
+end
 
 %   - optionally smooth and/or gauss filter
 
@@ -79,10 +104,6 @@ set(gca,'yticklabel',label_freqs);
 
 %   time
 
-if isempty(time_series)
-    time_series = -1000:50:1000;
-end
-
 label_time = repmat({''},1,length(time_series));
 for k = 1:10:length(time_series)
     label_time{k} = num2str(time_series(k));
@@ -94,11 +115,17 @@ set(gca,'xticklabel',label_time);
 %   x and y labels
 
 if ~isempty(params.xLabel)
-    xlabel(params.xlabel);
+    xlabel(params.xLabel);
 end
 
 if ~isempty(params.yLabel)
     ylabel(d,params.yLabel);
+end
+
+%   title
+
+if ~isempty(params.title)
+    title(params.title);
 end
 
 %   - save output
