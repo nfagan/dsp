@@ -8,6 +8,7 @@ params = struct(...
     'fromTo', [], ...
     'savePlot', false, ...
     'savePath', [], ...
+    'filetype',   'epsc', ...
     'xLabel', 'Time (ms)', ...
     'yLabel', [], ...
     'title', [] ...
@@ -28,6 +29,7 @@ max_freq = params.maxFreq;
 save_plot = params.savePlot;
 save_path = params.savePath;
 from_to = params.fromTo;
+filetype = params.filetype;
 
 %   - account for empty inputs
 
@@ -52,6 +54,7 @@ freqs = repmat(freqs',1,size(data,2));
 freqs = flipud(freqs); data = flipud(data);
 
 %   - remove out of time-bounds data based on <from_to>
+%       and add index of 0 so that 0 is always labeled
 
 if ~isempty(from_to)
     from = find(time_series == from_to(1));
@@ -64,6 +67,10 @@ if ~isempty(from_to)
     time_series = time_series(from:to);
     data = data(:,from:to);
     freqs = freqs(:,from:to);
+    
+    %   zero index
+    
+    zero = find(time_series == 0);
     
 end
 
@@ -109,6 +116,10 @@ for k = 1:10:length(time_series)
     label_time{k} = num2str(time_series(k));
 end
 
+if ~isempty(zero)
+    label_time(zero) = {'0'};
+end
+
 set(gca,'xtick',1:length(label_time));
 set(gca,'xticklabel',label_time);
 
@@ -131,7 +142,7 @@ end
 %   - save output
 
 if save_plot
-    saveas(gcf,save_path,'png');
+    saveas(gcf,save_path,filetype);
 end
 
 

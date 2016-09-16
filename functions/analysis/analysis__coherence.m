@@ -1,6 +1,6 @@
 function store_coh = analysis__coherence(signals)
 
-within = {'trialtypes','outcomes'};
+within = {'administration','trialtypes','outcomes'};
 
 [indices, combs] = getindices(signals,within);
 
