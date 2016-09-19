@@ -1,6 +1,12 @@
-function store_coh = analysis__coherence(signals)
+function store_coh = analysis__coherence(signals,varargin)
 
-within = {'administration','trialtypes','outcomes'};
+params = struct(...
+    'within',{{'administration','trialtypes','outcomes'}} ...
+);
+
+params = parsestruct(params,varargin);
+
+within = params.within;
 
 [indices, combs] = getindices(signals,within);
 

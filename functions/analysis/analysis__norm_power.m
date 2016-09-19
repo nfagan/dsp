@@ -1,9 +1,17 @@
-function store_norm_power = analysis__norm_power(target,base)
+function store_norm_power = analysis__norm_power(target,base,varargin)
 
-norm_method = 'divide';
-norm_epoch = 'magcue';
+params = struct(...
+    'within',{{'regions','trialtypes','outcomes','epochs','administration'}}, ...
+    'normMethod','divide', ...
+    'normEpoch', 'magcue' ...
+);
 
-within = {'regions','trialtypes','outcomes','epochs','administration'};
+params = parsestruct(params,varargin);
+
+norm_method = params.normMethod;
+norm_epoch = params.normEpoch;
+
+within = params.within;
 
 %{
     separate reference electrode signals
