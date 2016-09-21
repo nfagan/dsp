@@ -29,5 +29,6 @@ obj.data = binned;
 obj = refresh(obj);
 
 obj.window = window_info;
+obj.time.by = window_info.step;
 
 end
