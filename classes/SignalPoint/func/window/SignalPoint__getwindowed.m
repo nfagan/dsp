@@ -1,5 +1,9 @@
 function obj = SignalPoint__getwindowed(obj,step,w_size)
 
+window_info.iswindowed = true;
+window_info.step = step;
+window_info.size = w_size;
+
 fs = obj.fs;
 signals = obj.data; 
 
@@ -24,8 +28,6 @@ binned(empty) = [];
 obj.data = binned;
 obj = refresh(obj);
 
-obj.window.iswindowed = true;
-obj.window.step = step;
-obj.window.size = w_size;
+obj.window = window_info;
 
 end
