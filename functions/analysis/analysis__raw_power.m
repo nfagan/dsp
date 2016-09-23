@@ -1,15 +1,27 @@
-function store_power = analysis__raw_power(signals)
+function store_power = analysis__raw_power(signals,varargin)
 
-within = {'regions','trialtypes','outcomes','epochs','administration','days'};
+params = struct(...
+    'within',{{'regions','trialtypes','outcomes','epochs','administration','days'}} ...
+    );
+params = parsestruct(params,varargin);
+
+within = params.within;
+
+reference = signals(signals == 'ref');
+signals = signals(signals ~= 'ref');
 
 [indices, combs] = getindices(signals,within);
 
 region_ind = strcmp(within,'regions');
 
+store_power = DataObject();
+
 for i = 1:length(indices)
     
+    fprintf('\nProcessing %d of %d',i,length(indices));
+    
     real = signals(indices{i});
-    ref = signals(signals == [{'ref'} combs(i,~region_ind)]);
+    ref = reference(reference == combs(i,~region_ind));
     
     if isempty(ref)
         continue;
@@ -21,11 +33,7 @@ for i = 1:length(indices)
     
     labels = labelbuilder(real,combs(i,:));
     
-    if i == 1
-        store_power = DataObject({power},labels);
-    else store_power = [store_power; DataObject({power},labels)];
-    end
-    
+    store_power = [store_power; DataObject({power},labels)];
 end
 
 end
