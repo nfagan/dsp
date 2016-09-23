@@ -1,13 +1,11 @@
 
-plotdirectory = fullfile(pathfor('secondGrantPlots'),'092016');
+plotdirectory = fullfile(pathfor('secondGrantPlots'),'092316');
 
 set(0,'DefaultFigureVisible','off');
 
 %% power / norm power
 
-type = 'raw_power_collapsed_across_pre_and_post';
-% data = sal.npower_post_minus_pre;
-% data = targ_power(targ_power == 'other');
+type = 'raw_power_target_acquire_multitaper';
 within = {'regions','epochs','administration','trialtypes','outcomes'};
 
 [indices,combs] = getindices(data,within);
@@ -22,9 +20,14 @@ for i = 1:length(indices)
     region = char(unique(extr('regions')));
     epoch = char(unique(extr('epochs')));
     
-    filename = sprintf('%s_%s_%s',region,trial,outcome);
+%     clim = clims.multitapered.(outcome);
     
-    filepath = fullfile(plotdirectory,type,drug,admin,epoch,filename);
+%     filename = sprintf('%s_%s_%s',region,trial,outcome);
+    
+%     filepath = fullfile(plotdirectory,type,drug,admin,epoch,filename);
+
+    filename = sprintf('%s_%s_%s_%s_%s_%s',drug,admin,epoch,region,trial,outcome);
+    filepath = fullfile(plotdirectory,type,filename);
     
     plot__spectrogram(extr,...
         'maxFreq',  70, ...
@@ -32,12 +35,14 @@ for i = 1:length(indices)
         'savePlot', true, ...
         'savePath', filepath,...
         'filetype', 'png', ...
-        'clims',    [.5e-4 6.5e-4], ...
+        'clims',    [], ...
         'xLabel',   sprintf('Time (ms) from %s',epoch), ...
         'yLabel',   'Normalized Power', ...
         'title',    sprintf('%s - %s',admin,drug) ...
         );
 end
+
+close all;
 
 %.5 1.3
 % .5e-4 8e-4

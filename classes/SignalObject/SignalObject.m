@@ -83,6 +83,14 @@ classdef SignalObject < DataObject
                 obj = SignalObject(obj,fs); %#ok<PROPLC>
             end
         end
+        
+        %{
+            helpers
+        %}
+        
+        function obj = onetrial(obj,varargin)
+            obj = SignalObject__onetrial(obj,varargin{:});
+        end
             
     end
     
