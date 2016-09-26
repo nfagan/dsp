@@ -6,8 +6,11 @@ params = struct(...
     'normEpoch', 'magcue', ...
     'trialByTrial', false ...
 );
+exclude = fieldnames(params);
 
 params = parsestruct(params,varargin);
+
+% passed_params = struct2varargin(params,exclude);
 
 norm_method = params.normMethod;
 norm_epoch = params.normEpoch;
@@ -42,8 +45,8 @@ for i = 1:length(indices)
     ref_to_norm_by = ref_base(ref_base == ...
         [combs(i,~(region_ind | epoch_ind)) {norm_epoch}]);
     
-    to_norm = to_norm - ref_to_norm;
-    norm_by = norm_by - ref_to_norm_by;
+%     to_norm = to_norm - ref_to_norm;
+%     norm_by = norm_by - ref_to_norm_by;
     
     power = norm_power(to_norm,norm_by,...
         'normMethod',norm_method,'trialByTrial',params.trialByTrial);

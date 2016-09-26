@@ -1,7 +1,7 @@
-function store_power = analysis__raw_power(signals,varargin)
+function [store_power, f] = analysis__raw_power(signals,varargin)
 
 params = struct(...
-    'within',{{'regions','trialtypes','outcomes','epochs','administration','days'}}, ...
+    'within',{{'regions','trialtypes','outcomes','epochs','administration'}}, ...
     'takeMean',true ...
     );
 params = paraminclude('Params__signal_processing',params);
@@ -31,9 +31,10 @@ for i = 1:length(indices)
         continue;
     end
     
-    fixed = real - ref;
+%     fixed = real - ref;
+    fixed = real;
     
-    power = raw_power(fixed,passed_params{:});
+    [power, f] = raw_power(fixed,passed_params{:});
     
     labels = labelbuilder(real,combs(i,:));
     

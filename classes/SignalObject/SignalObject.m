@@ -23,7 +23,7 @@ classdef SignalObject < DataObject
         %   - downsampling
       
         function obj = downsample(obj,new_fs)
-            obj = SignalObject__downsample(obj,new_fs);
+            obj = SignalObject__downsample(obj,new_fs); obj.fs = new_fs;
         end
         
         %{
@@ -46,6 +46,12 @@ classdef SignalObject < DataObject
         
         function [coh, freqs] = coherence(obj,varargin)
             [coh, freqs] = SignalObject__coherence(obj,varargin{:});
+        end
+        
+        %   - filter
+        
+        function obj = filter(obj,varargin)
+           obj = SignalObject__filter(obj,varargin{:}); 
         end
         
         %{

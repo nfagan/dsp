@@ -2,6 +2,7 @@ function plot__spectrogram(obj,varargin)
 
 params = struct(...
     'clims',[], ...
+    'logTransform', false, ...
     'smooth',false, ...
     'addGaussian',true, ...
     'timeSeries', [], ...
@@ -21,6 +22,7 @@ params = parsestruct(params,varargin);
 %   params
 
 time_series = params.timeSeries;
+log_transform = params.logTransform;
 do_blur = params.addGaussian;
 do_smoothing = params.smooth;
 clims = params.clims;
@@ -71,7 +73,13 @@ if ~isempty(from_to)
     %   zero index
     
     zero = find(time_series == 0);
-    
+else zero = 1;
+end
+
+%   - optionally log-transform the data
+
+if log_transform
+    data = 10.*log10(data);
 end
 
 %   - optionally smooth and/or gauss filter

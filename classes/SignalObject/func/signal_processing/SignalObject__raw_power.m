@@ -16,7 +16,17 @@ take_mean = params.takeMean;
 
 fs = obj.fs;
 
-nw = (n_tapers + 1)/2;
+% nw = (n_tapers + 1)/2;
+nw = 1.5;
+
+%{
+    define inputs for chronux structure
+%}
+
+chronux_params.Fs = fs;
+chronux_params.tapers = [1.5 2];
+chronux_params.fpass = [freqs(1) freqs(end)];
+chronux_params.trialave = take_mean;
 
 %   Concatenate signals if they are windowed
 
@@ -26,10 +36,10 @@ else
     signals = obj.data;
 end
 
-if take_mean
+if take_mean && ~strcmp(method,'chronux')
     power = zeros(numel(freqs),numel(signals));
     frequency = zeros(numel(freqs),numel(signals));
-else
+elseif ~take_mean
     power = cell(1,numel(signals));
     frequency = cell(1,numel(signals));
 end
@@ -38,7 +48,7 @@ end
     remove outlier signals
 %}
 
-signals = exclude(signals,[-.5 .5]);
+% signals = exclude(signals,[-.5 .5]);
 
 %{
     calculate power within each window
@@ -49,12 +59,18 @@ for i = 1:length(signals);
     one_window = signals{i};
     one_window = one_window';
     
-%     one_window = one_window(:,1:5);
+    mean_within_bin = mean(one_window);
+    
+    for k = 1:size(one_window,1)
+        one_window(k,:) = one_window(k,:) - mean_within_bin;
+    end
     
     if strcmp(method,'periodogram');
         [pxx,w] = periodogram(one_window,[],freqs,fs);
     elseif strcmp(method,'multitaper')           
         [pxx,w] = pmtm(one_window,nw,freqs,fs);
+    elseif strcmp(method,'chronux')
+        [pxx,w] = mtspectrumc(one_window,chronux_params);
     else
         error('Unrecognized method ''%s''',method);
     end
@@ -65,7 +81,7 @@ for i = 1:length(signals);
         pxx = mean(pxx,2);
         power(:,i) = pxx;
         frequency(:,i) = w;
-    else
+    elseif ~take_mean
         power{i} = pxx;
         frequency{i} = w;
     end
