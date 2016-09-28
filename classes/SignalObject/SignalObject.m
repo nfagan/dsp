@@ -100,4 +100,23 @@ classdef SignalObject < DataObject
             
     end
     
+    %{
+        static methods
+    %}
+    
+    methods (Static)
+        
+        %{
+            static signal manipulation methods
+        %}
+        
+        function varargout = exclude(objs,limits)
+            objs = SignalObject__exclude(objs,limits);
+            varargout = cell(size(objs));
+            for i = 1:numel(objs)
+                varargout(i) = objs(i);
+            end
+        end
+    end
+    
 end

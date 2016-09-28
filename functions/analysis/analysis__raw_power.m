@@ -4,6 +4,7 @@ params = struct(...
     'within',{{'regions','trialtypes','outcomes','epochs','administration'}}, ...
     'takeMean',true ...
     );
+
 params = paraminclude('Params__signal_processing',params);
 params = parsestruct(params,varargin);
 
@@ -27,12 +28,14 @@ for i = 1:length(indices)
     real = signals(indices{i});
     ref = reference(reference == combs(i,~region_ind));
     
-    if isempty(ref)
+    if isempty(ref) && params.subtractReference
         continue;
     end
     
-%     fixed = real - ref;
-    fixed = real;
+    if params.subtractReference
+        fixed = real - ref;
+    else fixed = real;
+    end
     
     [power, f] = raw_power(fixed,passed_params{:});
     

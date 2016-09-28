@@ -1,5 +1,7 @@
 function [power,frequency] = SignalObject__raw_power(obj,varargin)
 
+assert(~isempty(obj),'No signals exist in the object');
+
 params = struct(...
     'takeMean', true ...
 );
@@ -17,7 +19,8 @@ take_mean = params.takeMean;
 fs = obj.fs;
 
 % nw = (n_tapers + 1)/2;
-nw = 1.5;
+% nw = 1.5;
+nw = 2;
 
 %{
     define inputs for chronux structure
@@ -59,10 +62,12 @@ for i = 1:length(signals);
     one_window = signals{i};
     one_window = one_window';
     
-    mean_within_bin = mean(one_window);
-    
-    for k = 1:size(one_window,1)
-        one_window(k,:) = one_window(k,:) - mean_within_bin;
+    if params.subtractBinMean
+        mean_within_bin = mean(one_window);
+
+        for k = 1:size(one_window,1)
+            one_window(k,:) = one_window(k,:) - mean_within_bin;
+        end
     end
     
     if strcmp(method,'periodogram');
@@ -78,7 +83,7 @@ for i = 1:length(signals);
 %     pxx = pxx'; % if using one trial
     
     if take_mean
-        pxx = mean(pxx,2);
+        pxx = mean(10.*log10(pxx),2); %  NOTE: changed to log10 calculation
         power(:,i) = pxx;
         frequency(:,i) = w;
     elseif ~take_mean
