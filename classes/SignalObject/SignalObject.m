@@ -2,12 +2,16 @@ classdef SignalObject < DataObject
     
     properties (Access = public)
        fs;
+       time;
     end
     
     methods
-        function obj = SignalObject(data_struct, fs)
+        function obj = SignalObject(data_struct, fs, time)
             obj = obj@DataObject(data_struct);
             obj.fs = fs;
+            if nargin > 2
+                obj.time = time;
+            end
         end
         
         %{
@@ -54,6 +58,18 @@ classdef SignalObject < DataObject
            obj = SignalObject__filter(obj,varargin{:}); 
         end
         
+        %   - remove line noise
+        
+        function obj = rmline(obj,varargin)
+            obj = SignalObject__rmline(obj,varargin{:});
+        end
+        
+        %   - process -- filter, rmline, window
+        
+        function obj = process(obj,w_step,w_size)
+            obj = window(rmline(filter(obj)),w_step,w_size);
+        end
+        
         %{
             operations
         %}
@@ -62,8 +78,17 @@ classdef SignalObject < DataObject
             obj = SignalObject__subraction(obj,b);
         end
         
+        function obj = windowmean(obj)
+            obj = SignalObject__windowmean(obj);
+        end
+        
         function unwindowed = windowconcat(obj)
             unwindowed = SignalObject__windowconcat(obj);
+        end
+        
+        function obj = vertcat(obj,varargin)
+            catted = vertcat@DataObject(obj,varargin{:});
+            obj = SignalObject(catted,obj.fs,obj.time);
         end
         
         %{
@@ -73,20 +98,24 @@ classdef SignalObject < DataObject
         %   - reference
         
         function obj = subsref(obj,varargin)
-            fs = obj.fs; %#ok<PROPLC>
+            fs = obj.fs; time = obj.time; %#ok<PROPLC>
             obj = subsref@DataObject(obj,varargin{:});
             if isa(obj,'DataObject')
-                obj = SignalObject(obj,fs); %#ok<PROPLC>
+                obj = SignalObject(obj,fs,time); %#ok<PROPLC>
             end
         end
         
         %   - assignment
         
         function obj = subsasgn(obj,varargin)
-            fs = obj.fs; %#ok<PROPLC>
+            s = varargin{1};
+            if strcmp(s.type,'.') && any(strcmp(properties(obj),s.subs))
+                obj.(s.subs) = varargin{2}; return;
+            end
+            fs = obj.fs; time = obj.time; %#ok<PROPLC>
             obj = subsasgn@DataObject(obj,varargin{:});
             if isa(obj,'DataObject')
-                obj = SignalObject(obj,fs); %#ok<PROPLC>
+                obj = SignalObject(obj,fs,time); %#ok<PROPLC>
             end
         end
         

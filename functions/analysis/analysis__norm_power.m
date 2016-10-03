@@ -5,7 +5,7 @@ function store_norm_power = analysis__norm_power(target,base,varargin)
 %}
 
 params = struct(...
-    'within',{{'regions','trialtypes','outcomes','epochs','administration'}}, ...
+    'within',{{'regions','trialtypes','outcomes','epochs','administration','drugs'}}, ...
     'normMethod','divide', ...
     'normEpoch', 'magcue', ...
     'trialByTrial', false ...
@@ -39,6 +39,11 @@ end
 
 region_ind = strcmp(within,'regions');
 epoch_ind = strcmp(within,'epochs');
+outcome_ind = strcmp(within,'outcomes');
+
+if ~params.collapseBaselineOutcomes
+    outcome_ind = false(size(outcome_ind));
+end
 
 store_norm_power = DataObject();
 
@@ -47,12 +52,12 @@ for i = 1:length(indices)
     fprintf('\nProcessing %d of %d',i,length(indices));
     
     to_norm = target(indices{i});
-    norm_by = base(base == [combs(i,~epoch_ind) {norm_epoch}]);
+    norm_by = base(base == [combs(i,~(epoch_ind | outcome_ind)) {norm_epoch}]);
     
     if params.subtractReference
         ref_to_norm = ref_target(ref_target == [combs(i,~region_ind)]);
         ref_to_norm_by = ref_base(ref_base == ...
-            [combs(i,~(region_ind | epoch_ind)) {norm_epoch}]);
+            [combs(i,~(region_ind | epoch_ind | outcome_ind)) {norm_epoch}]);
 
         to_norm = to_norm - ref_to_norm;
         norm_by = norm_by - ref_to_norm_by;
@@ -66,5 +71,10 @@ for i = 1:length(indices)
     
 end
 
+store_norm_power = SignalObject(store_norm_power,target.fs,target.time);
+
+if params.trialByTrial
+    store_norm_power = windowmean(store_norm_power);
+end
 
 end

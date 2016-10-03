@@ -29,7 +29,7 @@ for i = 1:size(binned{1},1);
 end
 
 obj.data = formatted;
-obj = SignalObject(obj,obj.fs);
+obj = SignalObject(obj,obj.fs,obj.time);
 
 end
 
