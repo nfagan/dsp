@@ -13,7 +13,9 @@ params = struct(...
     'filetype',   'epsc', ...
     'xLabel', 'Time (ms)', ...
     'yLabel', [], ...
-    'title', [] ...
+    'title', [], ...
+    'timeLabelStp', 10, ...
+    'visible', 'on' ...
 );
 
 params = paraminclude('Params__signal_processing.mat',params);
@@ -33,6 +35,8 @@ save_plot = params.savePlot;
 save_path = params.savePath;
 from_to = params.fromTo;
 filetype = params.filetype;
+time_label_stp = params.timeLabelStp;
+visible = params.visible;
 
 %   - account for empty inputs
 
@@ -97,7 +101,7 @@ end
 
 %   - plot
 
-figure;
+figure('visible', visible);
 if ~isempty(clims);
     h = imagesc(freqs,'CData',data,clims);
 else h = imagesc(freqs,'CData',data);
@@ -121,7 +125,7 @@ set(gca,'yticklabel',label_freqs);
 %   time
 
 label_time = repmat({''},1,length(time_series));
-for k = 1:10:length(time_series)
+for k = 1:time_label_stp:length(time_series)
     label_time{k} = num2str(time_series(k));
 end
 
@@ -134,25 +138,21 @@ set(gca,'xticklabel',label_time);
 
 %   x and y labels
 
-if ~isempty(params.xLabel)
-    xlabel(params.xLabel);
-end
+if ( ~isempty(params.xLabel) ); xlabel(params.xLabel); end
 
-if ~isempty(params.yLabel)
-    ylabel(d,params.yLabel);
-end
+if ( ~isempty(params.yLabel) ); ylabel(d,params.yLabel); end
 
 %   title
 
-if ~isempty(params.title)
-    title(params.title);
-end
+if ( ~isempty(params.title) ); title(params.title); end
 
 %   - save output
 
-if save_plot
-    saveas(gcf,save_path,filetype);
-end
+if ( save_plot ); saveas(gcf,save_path,filetype); end
+
+%   - close figure if set to be invisible
+
+if ( strcmp(visible, 'off') ); close gcf; end; 
 
 
 end

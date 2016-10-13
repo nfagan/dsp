@@ -44,4 +44,6 @@ for i = 1:length(indices)
     store_power = [store_power; DataObject({power},labels)];
 end
 
+store_power = SignalObject(store_power, signals.fs, signals.time);
+
 end

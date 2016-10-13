@@ -119,6 +119,13 @@ classdef SignalObject < DataObject
             end
         end
         
+        %   label handling
+        
+        function out = remove(obj, labels)
+            out = remove@DataObject(obj, labels);
+            out = SignalObject(out, obj.fs, obj.time);
+        end
+        
         %{
             helpers
         %}

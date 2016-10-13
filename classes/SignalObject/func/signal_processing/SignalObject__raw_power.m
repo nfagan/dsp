@@ -83,7 +83,8 @@ for i = 1:length(signals);
 %     pxx = pxx'; % if using one trial
     
     if take_mean
-        pxx = mean(10.*log10(pxx),2); %  NOTE: changed to log10 calculation
+%         pxx = mean(10.*log10(pxx),2); %  NOTE: changed to log10 calculation
+        pxx = mean(pxx, 2);
         power(:,i) = pxx;
         frequency(:,i) = w;
     elseif ~take_mean

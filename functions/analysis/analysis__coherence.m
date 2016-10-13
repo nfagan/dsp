@@ -1,9 +1,9 @@
 function store_coh = analysis__coherence(signals,varargin)
 
 params = struct(...
-    'within',{{'administration','trialtypes','outcomes'}} ...
+    'within',{{'administration','trialtypes','outcomes','drugs','epochs','monkeys'}} ...
 );
-
+params = paraminclude('Params__signal_processing', params);
 params = parsestruct(params,varargin);
 
 within = params.within;
@@ -16,12 +16,14 @@ for i = 1:length(indices)
     
     fprintf('\nProcessing %d of %d',i,length(indices));
     
-    acc = signals(signals == [combs(i,:) {'acc'} {'reward'}]);
-    bla = signals(signals == [combs(i,:) {'bla'} {'reward'}]);
-    ref = signals(signals == [combs(i,:) {'ref'} {'reward'}]);
+    acc = signals(signals == [combs(i,:) {'acc'}]);
+    bla = signals(signals == [combs(i,:) {'bla'}]);
     
-    acc = acc - ref; 
-    bla = bla - ref;
+    if params.subtractReference
+        ref = signals(signals == [combs(i,:) {'ref'}]);
+        acc = acc - ref;
+        bla = bla - ref;
+    end
     
     coh = coherence(bla,acc);
     
@@ -30,6 +32,8 @@ for i = 1:length(indices)
     store_coh = [store_coh; DataObject({coh},labels)];
     
 end
+
+store_coh = SignalObject(store_coh, signals.fs, signals.time);
 
 end
 

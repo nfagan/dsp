@@ -35,7 +35,9 @@ end
 
 for i = 1:count(to_norm,2);
     
-    [to_norm_power,freqs] = raw_power(to_norm(:,i),passed_params{:});
+    onewindow = to_norm; onewindow.data = onewindow.data(:,i);
+    
+    [to_norm_power,freqs] = raw_power(onewindow,passed_params{:});
     
     if ~params.trialByTrial
         to_norm_power = mean(to_norm_power,2);  % Get the row-mean (per-trial mean) for this 

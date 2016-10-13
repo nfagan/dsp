@@ -21,7 +21,6 @@ a_signals = windowconcat(a_signals);
 b_signals = windowconcat(b_signals);
 
 take_mean = params.takeMean;
-% max_freq = params.maxFreq;
 freqs = params.freqs;
 
 for i = 1:length(a_signals);
@@ -33,15 +32,15 @@ for i = 1:length(a_signals);
     
     [C,f] = mscohere(one_window_a,one_window_b,[],[],freqs,fs);
     
-    w = f';
+    if ( size(f,1) < size(f,2) ); f = f'; end;    %   store column-wise
     
     if take_mean
-        Cxy = mean(C,2); 
-        coherence(:,i) = Cxy;
-        freq(:,i) = w;
+        C = mean(C,2); 
+        coherence(:,i) = C;
+        freq(:,i) = f;
     else
         coherence{i} = C;
-        freq(:,i) = w;
+        freq(:,i) = f;
     end
 end
 
