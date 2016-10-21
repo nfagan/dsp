@@ -30,6 +30,12 @@ classdef SignalObject < DataObject
             obj = SignalObject__downsample(obj,new_fs); obj.fs = new_fs;
         end
         
+        %   - take a mean of the analysis output within <freqs> and <time>
+        
+        function obj = timefreqmean(obj, time, freqs, varargin)
+            obj = SignalObject__time_freq_mean(obj, time, freqs, varargin{:});
+        end
+        
         %{
             signal processing
         %}
