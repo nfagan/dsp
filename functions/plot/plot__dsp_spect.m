@@ -20,11 +20,12 @@ function plot__dsp_spect(data, plotdirectory, subfolder)
 
 if nargin < 3
 %     subfolder = 'subtracted_coherence_oxyMinusSal';
-    subfolder = 'raw_coherence_excluded';
+%     subfolder = 'raw_coherence_excluded';
+    subfolder = 'targetacquire/subtracted_coherence_antiVPro_choice';
 end
 
 if nargin < 2
-    plotdirectory = fullfile(pathfor('secondGrantPlots'),'101116');
+    plotdirectory = fullfile(pathfor('secondGrantPlots'),'102016');
 end
 
 within = data.label_fields;
@@ -34,6 +35,10 @@ within = data.label_fields;
 %   generated filename
 
 append = '';
+
+%   generate color limits automatically
+
+clims = autoscaler(data);
 
 for i = 1:length(indices)
     extr = data(indices{i});
@@ -51,21 +56,19 @@ for i = 1:length(indices)
     plot__spectrogram(extr,...
         'visible',      'off', ...
         'freqLimits',   [0 120], ...
-        'fromTo',       [-300 700], ...
+        'fromTo',       [-250 250], ...
         'timeSeries',   data.time, ...
         'freqs',        [0:200], ...
         'savePlot',     true, ...
         'logTransform', false, ...
         'savePath',     filepath,...
-        'filetype',     'png', ...
-        'clims',        [0 .6], ...
+        'filetype',     'epsc', ...
+        'clims',        [-.025 .025], ...
         'xLabel',       sprintf('Time (ms) from %s',epoch), ...
-        'yLabel',       'Normalized Power', ...
+        'yLabel',       'Normalized power', ...
         'title',        convert_to_title(filename) ...
         );
 end
-
-% [-.03 .065
 
 end
 
@@ -99,32 +102,15 @@ filename(underscores) = ' ';
 
 end
 
+%{
+    get appropriate color limits automatically
+%}
 
+function clims = autoscaler(obj)
 
+global_min = min( obj.cellfun(@(x) mean(mean(x)) - 2.5*mean(std(x))) );
+global_max = max( obj.cellfun(@(x) mean(mean(x)) + 2.5*mean(std(x))) );
 
-% pathchange('sheth');
-% plotdirectory = fullfile(pathfor('plots'), '100516');
-% pathchange('dsp');
+clims = [global_min global_max];
 
-% within = {'epochs','administration','trialtypes','outcomes'};
-% within = {'subjects','regions','emotions'};
-
-% append = '_subtract_by_mean_baseline_within_outcome';
-
-
-% 
-%     drug = 'na';
-%     admin = 'na';
-%     trial = 'na';
-%     outcome = char(unique(extr('emotions')));
-%     region = char(unique(extr('regions')));
-%     epoch = char(unique(extr('subjects')));
-    
-%     drug =      char(unique(extr('drugs')));
-%     admin =     char(unique(extr('administration')));
-%     trial =     char(unique(extr('trialtypes')));
-%     outcome =   char(unique(extr('outcomes')));
-%     region =    char(unique(extr('regions')));
-%     epoch =     char(unique(extr('epochs')));
-
-%     filename = sprintf('%s_%s_%s_%s_%s_%s',drug,admin,epoch,region,trial,outcome);
+end

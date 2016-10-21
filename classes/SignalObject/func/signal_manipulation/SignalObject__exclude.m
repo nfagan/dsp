@@ -56,22 +56,33 @@ end
 
 end
 
-function all_out_of_bounds = check_bounds(threshold, obj)
+function complete_index = check_bounds(threshold, obj)
 
 regions = unique( obj('regions') );
 
-all_out_of_bounds = false( count(obj,1), 1 );
+% all_out_of_bounds = false( count(obj,1), 1 );
 
 for i = 1:numel(regions)
     
-    retain = obj.where(regions{i});
     oneregion = obj.only(regions{i});
 
     out_of_bounds = cellfun(@(x) ( max(max(x)) - min(min(x)) ) > threshold, oneregion.data);
     out_of_bounds = sum( out_of_bounds,2 ) >= 1;
+    
+    if ( i == 1 ); all_out_of_bounds = out_of_bounds; continue; end;
+    
+    all_out_of_bounds = all_out_of_bounds | out_of_bounds;
 
-    all_out_of_bounds(retain) = out_of_bounds;
+%     all_out_of_bounds(retain) = out_of_bounds;
+end
 
+complete_index = false( count(obj,1), 1 );
+
+for i = 1:numel(regions)
+    
+    retain = obj.where(regions{i});
+    complete_index(retain) = all_out_of_bounds;
+    
 end
 
 end

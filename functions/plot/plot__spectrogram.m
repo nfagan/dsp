@@ -114,10 +114,12 @@ d = colorbar;
 
 %   freqs
 
+freqs = flipud(freqs);  %   temporarily flipud to plot from 0
 label_freqs = repmat({''},size(freqs,1),1);
 for k = 1:10:size(freqs,1);
     label_freqs{k} = num2str(round(freqs(k,1)));
 end
+label_freqs = flipud(label_freqs);
 
 set(gca,'ytick',1:length(label_freqs));
 set(gca,'yticklabel',label_freqs);
@@ -128,6 +130,10 @@ label_time = repmat({''},1,length(time_series));
 for k = 1:time_label_stp:length(time_series)
     label_time{k} = num2str(time_series(k));
 end
+
+%   make sure the last time point always has a label
+
+label_time{end} = num2str(time_series(end));
 
 if ~isempty(zero)
     label_time(zero) = {'0'};
