@@ -21,6 +21,9 @@ time = obj.time;
 freq_index = freqs >= freq_bounds(1) & freqs <= freq_bounds(2);
 time_index = time >= time_bounds(1) & time <= time_bounds(2);
 
+assert( all( [any(freq_index), any(time_index)] ), ...
+    'Could not find the desired frequencies or times' );
+
 %{
     for each cell in <obj.data>, take a mean across the desired times and
     frequencies

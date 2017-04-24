@@ -1,9 +1,25 @@
-function outstruct = SignalObject__exclude(threshold, instruct)
+function outstruct = SignalObject__exclude(threshold, instruct, varargin)
+
+params = struct( ...
+  'subtractReference', true ...
+);
+params = parsestruct( params, varargin );
+
+if ( isa(instruct, 'DataObjectStruct') )
+    instruct = instruct.objects; convert_to_data_struct = true;
+else convert_to_data_struct = false;
+end
+
+%{
+    ensure we can do the exclusion
+%}
 
 fields = validate( instruct );
 
-for i = 1:numel(fields)
+if ( params.subtractReference )
+  for i = 1:numel(fields)
     instruct.(fields{i}) = ref_subtract( instruct.(fields{i}) );
+  end
 end
 
 bad_trials = false( count(instruct.(fields{1}), 1), 1 );
@@ -17,6 +33,13 @@ outstruct = instruct;
 for i = 1:numel(fields)
     outstruct.(fields{i}) = instruct.(fields{i})(~bad_trials);
 end
+
+%{
+    convert the output back to a DataObjectStruct, if the input was of the
+    same type
+%}
+
+if ( convert_to_data_struct ); outstruct = DataObjectStruct(outstruct); end;
 
 end
 

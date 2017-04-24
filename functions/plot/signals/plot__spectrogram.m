@@ -15,7 +15,8 @@ params = struct(...
     'yLabel', [], ...
     'title', [], ...
     'timeLabelStp', 10, ...
-    'visible', 'on' ...
+    'visible', 'on', ...
+    'significanceBounds', [] ...
 );
 
 params = paraminclude('Params__signal_processing.mat',params);
@@ -45,6 +46,10 @@ if isempty(time_series)
 end
 
 %   data
+
+if ( isa(obj, 'SignalContainer') && ndims(obj.data) == 3 )
+  obj = get_freq_by_time_data( obj );
+end
 
 data = obj.data;
 data = data{1};
@@ -110,6 +115,13 @@ end
 colormap('jet');
 d = colorbar;
 
+%   - optionally add significance bounds
+
+if ~isempty(params.significanceBounds)
+    plot__helper__significance_bounds( ...
+        h, params.significanceBounds, ind, from:to)
+end
+
 %   - labeling
 
 %   freqs
@@ -154,7 +166,12 @@ if ( ~isempty(params.title) ); title(params.title); end
 
 %   - save output
 
-if ( save_plot ); saveas(gcf,save_path,filetype); end
+if ( save_plot );
+    if ( ischar(filetype) ); filetype = { filetype }; end;
+    for i = 1:numel(filetype)
+        saveas(gcf,save_path,filetype{i}); 
+    end
+end
 
 %   - close figure if set to be invisible
 

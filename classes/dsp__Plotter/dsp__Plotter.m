@@ -44,7 +44,7 @@ classdef dsp__Plotter
             
             if ( count(obj,1) > 1 )
                 fprintf(['\nWARNING: Only one object''s labels will be used' ...
-                    , ' to create an id for multiple objects']);
+                    , ' to create an id for multiple objects\n']);
                 obj = obj(1);
             end
             

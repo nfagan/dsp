@@ -1,5 +1,9 @@
 function sig = analysis__permute(type, signals, sample)
 
+if ( isa(signals, 'DataObjectStruct') )
+    signals = signals.objects;
+end
+
 %{
     validate inputs
 %}
@@ -18,7 +22,12 @@ end
 
 repititions = 5;
 
-for i = 1:repititions    
+store = DataObject();
+
+for i = 1:repititions
+    
+    fprintf( '\n\n\nITERATION %d OF %d\n\n\n', i, repititions );
+    
     switch type
         case { 'normalizedPower', 'subtractedNormalizedPower' }
             out = permute_norm( signals, sample, type );
@@ -26,12 +35,12 @@ for i = 1:repititions
             out = permute_nonnorm( signals, sample, type );
     end
     
-    if ( i == 1 ); store = out; continue; end;
-    
     store = store.append( out );
 end
 
-sig = determine_significance( store, sample, .05 );
+sig.zTest = fit_dist__determine_significance( store, sample );
+sig.percTest = determine_significance( store, sample, .05 );
+sig.permuted = out;
 
 end
 
@@ -68,7 +77,8 @@ for i = 1:numel(indices)
         non-significant samples is less than <threshold>
     %}
     
-    mark_significant = ( mark_non_significant ./ n_repetitions ) < threshold;
+%     mark_significant = ( mark_non_significant ./ n_repetitions ) < threshold;
+    mark_significant = mark_non_significant ./ n_repetitions;
     
     %{
         store the significance indicator with the same labels as the
@@ -80,6 +90,58 @@ for i = 1:numel(indices)
     if ( i == 1 ); store_significant = extr_sample; continue; end;
     
     store_significant = store_significant.append( extr_sample );
+end
+
+end
+
+%{
+    alternative test -- after permuting the values, fit a normal
+    distribution to each time-by-frequency cell (k) in <permuted>, and test
+    for the two-tailed significance of sample(k)
+%}
+
+function p = fit_dist__determine_significance(permuted, sample)
+
+[indices, combs] = getindices( permuted, permuted.fieldnames() );
+
+for i = 1:numel(indices)
+    
+    %{
+        match the sample data to the permuted data
+    %}
+
+    extr_permuted = permuted( indices{i} );
+    extr_sample = sample.only( combs(i,:) );
+    
+    sample_data = extr_sample.data{1};
+    permuted_data = extr_permuted.data;
+    
+    %{
+        for each time-by-frequency cell k in <sample_data>, get a vector of
+        permuted values for the matching cell(k) in each matrix of <permuted_data>.
+        Then fit a normal distribution to the permuted vector, and test for
+        the two-tailed significance of sample_data(k)
+    %}
+    
+    p_values = zeros( size(sample_data) );
+    
+    for k = 1:numel(sample_data)
+        test_val = sample_data(k);
+        distribution = fitdist( cellfun(@(x) x(k), permuted_data), 'Normal' );
+        
+        z = (test_val - distribution.mu) / distribution.sigma;
+        p_values(k) = 2 * normcdf( -abs(z), 0, 1 );
+    end
+    
+    %{
+        store with the same labels as the extracted sample <extr_sample>
+    %}
+    
+    extr_sample.data = {p_values};
+    
+    if ( i == 1 ); p = extr_sample; continue; end;
+    
+    p = p.append( extr_sample );
 end
 
 end
@@ -156,6 +218,12 @@ for i = 1:numel(fields)
     current_index = permuted_indices.(fields{i});
     signals.(fields{i}).data = signals.(fields{i}).data(current_index);
 end
+
+%   begin debug -- fill with sine wave of 100hz
+
+% signals.toNormalize = fake_signal(signals.toNormalize);
+
+%   end debug
 
 %{
     do the main analysis
@@ -238,5 +306,30 @@ assert( isstruct(signals), struct__msg );
 assert( all([isfield(signals, 'toNormalize'), isfield(signals, 'baseline')]) , struct__msg );
 
 validate__common( signals.toNormalize, sample );
+
+end
+
+%{
+    debug -- generate fake signal and test
+%}
+
+function signals = fake_signal(signals)
+
+tests.window = 21;  %   t = 0;
+tests.f = 1e2;
+tests.fs = 1e3;
+tests.time = 1:length(signals.data{1});
+tests.sine = 3 .* sin(2 * pi * tests.f/tests.fs * tests.time);
+tests.noise_amplitude = 1.5;
+tests.modified_data = signals.data(:,tests.window);
+
+for i = 1:numel(tests.modified_data)
+    tests.modified_data{i} = tests.sine + rand(1, length(tests.sine)) * tests.noise_amplitude;
+end
+
+tests.data = signals.data;
+tests.data(:,tests.window) = tests.modified_data;
+
+signals.data = tests.data;
 
 end
