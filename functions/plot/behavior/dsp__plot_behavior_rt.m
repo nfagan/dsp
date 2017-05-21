@@ -8,20 +8,14 @@ function dsp__plot_behavior_rt( behav, trial_fields, save_path )
 %         that identify each column in `behav`.
 %       - `save_path` (char) -- Full path to the directory to save.
 
-ind = strcmp( trial_fields, 'reaction_time' );
-assert( any(ind), 'Could not find a reaction_time column.' );
+rt = dsp__get_rt( behav, trial_fields );
 
 pl = ContainerPlotter();
-
-rt = behav;
-rt.data = rt.data(:, ind);
-nans = any( isnan(rt.data), 2);
-rt = rt.keep( ~nans );
 
 figure;
 pl.default();
 pl.order_by = { 'self', 'both', 'other', 'none' };
-pl.bar( rt, 'outcomes', [], {'administration', 'trialtypes'} );
+pl.bar( rt, 'outcomes', [], {'administration', 'trialtypes', 'monkeys', 'drugs'} );
 
 full_save_path = fullfile( save_path, 'reaction_time' );
 saveas( gcf, [full_save_path, '.eps'], 'epsc' );

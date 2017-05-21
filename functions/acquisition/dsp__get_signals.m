@@ -9,12 +9,12 @@ SAMPLING_RATE = 1e3;
 
 COMMON_AVERAGE_REFERENCE = false;
 
-EPOCHS.fixOn =    struct( 'time', [0 2000],     'win_size', 150, 'stp_size', 50, 'active', false );
+EPOCHS.fixOn =    struct( 'time', [0 2000],     'win_size', 150, 'stp_size', 50, 'active', true );
 EPOCHS.cueOn =    struct( 'time', [-150 -150],  'win_size', 150, 'stp_size', 50, 'active', false );
 % EPOCHS.targOn =   struct( 'time', [-350 650],   'win_size', 150, 'stp_size', 50, 'active', true );
 EPOCHS.targOn =   struct( 'time', [-500 500],   'win_size', 150, 'stp_size', 50, 'active', true );
-EPOCHS.targAcq =  struct( 'time', [-500 500],   'win_size', 150, 'stp_size', 50, 'active', false );
-EPOCHS.rwdOn =    struct( 'time', [-1000 1000], 'win_size', 150, 'stp_size', 50, 'active', false );
+EPOCHS.targAcq =  struct( 'time', [-500 500],   'win_size', 150, 'stp_size', 50, 'active', true );
+EPOCHS.rwdOn =    struct( 'time', [-1000 1000], 'win_size', 150, 'stp_size', 50, 'active', true );
 
 DATA_FIELDS.signals = 'file';
 DATA_FIELDS.align = { 'plex', 'picto' };

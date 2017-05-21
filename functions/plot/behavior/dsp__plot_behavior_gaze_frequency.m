@@ -16,7 +16,7 @@ pl = ContainerPlotter();
 figure;
 pl.default();
 pl.order_by = { 'self', 'both', 'other', 'none' };
-pl.plot_by( gazes, 'outcomes', 'looks_to', {'administration', 'trialtypes', 'look_period'} );
+pl.plot_by( gazes, 'outcomes', 'looks_to', {'administration', 'trialtypes', 'look_period', 'monkeys', 'drugs'} );
 
 full_save_path = fullfile( save_path, 'social_gaze_frequency' );
 saveas( gcf, [full_save_path, '.eps'], 'epsc' );

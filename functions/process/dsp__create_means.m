@@ -3,6 +3,7 @@ function dsp__create_means()
 base_load_path = fullfile( pathfor('ANALYSES'), '020317' );
 
 io = DSP_IO();
+io.FORCE_OVERWRITE = true;
 
 measure_combs = allcomb( { ...
     {'non_common_averaged'} ...
@@ -36,14 +37,16 @@ for i = 1:size(measure_combs, 1)
       one( 'administration' ) = 'pre';
     end
     one = one.keep_within_range( .3 );
-    loaded = loaded.append( one );
+    one = dsp__remove_bad_days_and_blocks( one );
+    m_within = { 'days', 'channels', 'outcomes', 'administration', 'trialtypes' };
+    collapse_across = { 'trials', 'blocks', 'recipients', 'sessions', 'magnitudes' };
+    meaned = one.do( m_within, @mean );
+    meaned = meaned.collapse( collapse_across );    
+    loaded = loaded.append( meaned );
   end
   
-  m_within = { 'days', 'channels', 'outcomes', 'administration', 'trialtypes' };
-  no_collapse = [ m_within, {'regions', 'drugs'} ];
-  meaned = one.do( m_within, @mean );
-  meaned = meaned.collapse_except( no_collapse );
+  loaded = loaded.update_label_sparsity();
+  loaded = loaded.columnize();
   
-  io.save( meaned, full_save_path );
-
+  io.save( loaded, full_save_path );
 end

@@ -8,6 +8,7 @@ classdef DSP_IO < handle
     OUTER_HEADER_CATEGORIES = { 'days' };
     INNER_HEADER_CATEGORIES = { 'monkeys', 'drugs', 'days' };
     SAVE_SEGMENT_SIZE = 10e3;
+    FORCE_OVERWRITE = false;
   end
   
   methods
@@ -47,7 +48,7 @@ classdef DSP_IO < handle
         current_days = header.days;
         matches = intersect( days, current_days );
         if ( ~isempty(matches) )
-          while ( true )
+          while ( ~obj.FORCE_OVERWRITE )
             in = input( ['\n\nWARNING: Some of the sessions in the to-be-saved' ...
               , ' container already exist. Do you wish to overwrite them (y/n)?'], 's' );
             if ( isequal(lower(in), 'n') )
@@ -57,7 +58,7 @@ classdef DSP_IO < handle
             if ( isequal(lower(in), 'y') ), break; end;
           end
         end
-        header.days = unique( [header.days, days] );
+        header.days = unique( [header.days(:); days] );
         header = header_struct_to_delimited_cell( obj, header );
         write_header_file( obj, header, folder );
       else
@@ -71,11 +72,10 @@ classdef DSP_IO < handle
       sessions_path = fullfile( folder, obj.SESSIONS_FOLDER_NAME );
       if ( ~sessions_folder_exists(obj, folder) ), mkdir( sessions_path ); end
       
-      segment_size = obj.SAVE_SEGMENT_SIZE;
-      
       for i = 1:numel(days)
         fprintf( '\n - Saving %s (%d of %d)', days{i}, i, numel(days) );
         day = days{i};
+        segment_size = obj.SAVE_SEGMENT_SIZE;
         extr = container.only( day );
         full_folder_path = fullfile( sessions_path, day );
         if ( exist(full_folder_path, 'dir') ~= 7 )
@@ -228,6 +228,8 @@ classdef DSP_IO < handle
               trial_stats = current.trial_stats;
               trial_stats = structfun( @(x) zeros(n_trials, size(x, 2)), trial_stats, 'un', false );
               stat_fields = fieldnames( trial_stats );
+            else
+              is_signal_container = false;
             end
           end
           data( stp:stp+current_n_rows-1, colons{:} ) = current.data;

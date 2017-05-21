@@ -32,7 +32,7 @@ for i = 1:numel(days)
     end
   end
   are_pre = day_ind & session_ind & block_ind & trial_ind;
-  assert( any(are_pre), 'Incorrect search criteria for pre' );
+%   assert( any(are_pre), 'Incorrect search criteria for pre' );
   is_pre = is_pre | are_pre;
 end
 

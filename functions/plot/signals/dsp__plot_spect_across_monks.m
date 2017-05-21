@@ -207,6 +207,7 @@ switch ( kind )
 %     meaned = all_monks.mean_within( {'outcomes', 'regions', 'administration', 'drugs'} );
     meaned = manipulation__pro_v_anti( meaned );
     meaned = meaned.subtract_across( 'post', 'pre', 'postMinusPre' );
+    meaned = meaned.do( {'outcomes', 'administration', 'drugs', 'regions'}, @mean );
     shape = [1 2];
   case 'pro_minus_anti'
     meaned = all_monks.mean_within( {'outcomes', 'regions', 'trialtypes'} );

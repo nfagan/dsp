@@ -1,11 +1,14 @@
 %%  load behavioral data / configure save destination
 
-io = DSP_IO();
-load_path = pathfor( 'BEHAVIOR' );
-original_behav = io.load( load_path );
-load( fullfile(load_path, 'trial_fields.mat') );
+io = dsp_h5( fullfile(pathfor('DATABASE'), 'dsp.h5') );
+behav = io.read( '/Measures/Behavior' );
+behav = dsp__remove_bad_days_and_blocks( behav );
+trial_fields = io.parseatt( '/Measures/Behavior/data', 'trial_fields' );
 
-save_path = fullfile( pathfor('PLOTS'), '042017', 'behavior', 'test' );
+day = '042717';
+subfolder = 'behavior\per_drug';
+
+save_path = fullfile( pathfor('PLOTS'), day, subfolder );
 if ( exist(save_path, 'dir') ~= 7 ), mkdir( save_path ); end;
 
 %%  only include block 1 and block 2 from non injection days
@@ -13,8 +16,6 @@ if ( exist(save_path, 'dir') ~= 7 ), mkdir( save_path ); end;
 %   Only include PRE data. For non injection days ('unspecified'), only
 %   keep blocks 1 and 2, and set these to PRE
 
-behav = original_behav;
-behav = dsp__remove_bad_days_and_blocks( behav );
 unspc = behav.only( 'unspecified' );
 behav = behav.rm( 'unspecified' );
 unspc = unspc.only( {'block__1', 'block__2'} );
@@ -27,6 +28,15 @@ behav = behav.rm( 'errors' );
 
 behav = behav.only( {'pre'} );
 behav = behav.rm( 'errors' );
+
+%%  only keep oxytocin and saline; remove errors
+
+behav = behav.only( {'oxytocin', 'saline'} );
+behav = behav.rm( {'errors', 'cued', 'pre'} );
+
+%%  collapse things
+
+behav = behav.collapse( {'administration', 'monkeys'} );
 
 %%  plot
 
