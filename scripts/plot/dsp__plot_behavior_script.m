@@ -1,11 +1,12 @@
 %%  load behavioral data / configure save destination
 
-io = dsp_h5( fullfile(pathfor('DATABASE'), 'dsp.h5') );
-behav = io.read( '/Measures/Behavior' );
+io = dsp2.io.get_dsp_h5();
+pathstr = dsp2.io.get_path( 'behavior' );
+behav = io.read( pathstr );
 behav = dsp__remove_bad_days_and_blocks( behav );
-trial_fields = io.parseatt( '/Measures/Behavior/data', 'trial_fields' );
+trial_fields = io.read( io.fullfile(pathstr, 'Key') );
 
-day = '042717';
+day = '060217';
 subfolder = 'behavior\per_drug';
 
 save_path = fullfile( pathfor('PLOTS'), day, subfolder );

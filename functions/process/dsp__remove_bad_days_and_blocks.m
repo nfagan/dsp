@@ -1,6 +1,6 @@
 function obj = dsp__remove_bad_days_and_blocks( obj )
 
-bad_days = { '02012017', '02022017' };
+bad_days = { '02012017', '02022017', '06052017' };
 bad_days = day_prefix( bad_days );
 
 days_for_first_block_removal = { '01172017' };
@@ -13,10 +13,6 @@ days_to_correct = day_prefix( days_to_correct );
 for i = 1:numel(days_to_correct)
   ind = obj.where( {days_to_correct{i}, 'block__2'} );
   obj( 'administration', ind ) = 'post';
-%   extr = obj.keep(ind);
-%   obj = obj.keep(~ind);
-%   extr( 'administration' ) = 'post';
-%   obj = obj.append( extr );
 end
 
 %   remove `bad_days`

@@ -13,6 +13,7 @@ classdef SignalContainer < Container
     params = struct( ...
         'coherenceType', 'chronux' ...
       , 'powerType', 'chronux' ...
+      , 'referenceType', 'common_averaged' ...
       , 'subtractBinMean', true ...
       , 'trialByTrialMean', false ...
       , 'chronux_params', struct('tapers', [1.5 2]) ...
@@ -109,6 +110,22 @@ classdef SignalContainer < Container
       obj = keep_trial_stats( obj, ~ind );
     end
     
+    function [obj, ind] = remove_nans_and_infs(obj)
+      
+      %   REMOVE_NANS_AND_INFS -- Remove rows of data containg NaN or Inf
+      %     values.
+      %
+      %     Note that, if even one value in a row is Inf or NaN, the whole
+      %     row is removed.
+      
+      if ( ndims(obj.data) == 3 )
+        ind = any( any(isinf(obj.data) | isnan(obj.data), 3), 2 );
+      else
+        ind = any( isinf(obj.data) | isnan(obj.data), 2 );
+      end
+      obj = keep( obj, ~ind );
+    end
+    
     function obj = only_not(obj, selectors)
       
       %   ONLY_NOT -- Retain elements not in *all* labels in
@@ -179,8 +196,8 @@ classdef SignalContainer < Container
       time_series = get_time_series( obj );
       assert( numel(time_) == 2, ['Expected desired times to be a' ...
         , ' two-element double, but there were %d elements.'], numel(time_) );
-      assert( time_(1) < time_(2), ['The first time-point must be earlier' ...
-        , ' than the second.'] );
+      assert( time_(1) <= time_(2), ['The first time-point must be earlier' ...
+        , ' than or the same as the second.'] );
       assert( ndims(obj.data) == 3, 'Data in the object must be three-dimensional.' );
       assert( numel(time_series) == size(obj.data, 3), ['The time properties' ...
         , ' in the object do not properly correspond to the size of the data' ...
@@ -238,11 +255,54 @@ classdef SignalContainer < Container
       obj = SignalObject__filter( obj, varargin{:} );
     end
     
-    function obj = rmline(obj, varargin)
+    function obj = rmline(obj, F, chron_params)
       
       %   RMLINE -- Remove line noise from the raw signals in `obj.data`.
+      %
+      %     IN:
+      %       - `F` (double) |OPTIONAL| -- Frequency to target for noise
+      %         removal. Defaults to 60.
+      %       - `chron_params` (struct) |OPTIONAL| -- Struct with 'Fs',
+      %         'fpass', and 'tapers' fields. Defaults to a struct where
+      %         'Fs' is the obj.fs property, 'fpass' is [50, 70], and
+      %         'tapers' is [3, 5].
       
-      obj = SignalObject__rmline( obj, varargin{:} );
+      if ( nargin < 2 ), F = 60; end
+      if ( nargin < 3 )
+        chron_params = struct( 'Fs', obj.fs, 'fpass', [], 'tapers', [2, 3] );
+      end
+      assert( ismatrix(obj.data), ['Data in the object must be an MxN' ...
+        , ' matrix of M trials and N samples.'] );
+      signals = obj.data';
+%       signals = rmlinesc( signals, chron_params, [], [], F );
+      wo = F / (obj.fs/2);
+      [b, a] = iirnotch( wo, wo/50, -.005 );
+      signals = filter( b, a, signals );
+      obj.data = signals';
+    end
+    
+    function obj = downsample(obj, new_fs)
+      
+      %   DOWNSAMPLE -- Downsample data to a new target sampling rate.
+      %
+      %     The new sampling rate must be an integer factor of the current
+      %     sampling rate, and smaller than the original sampling rate.
+      %
+      %     IN:
+      %       - `new_fs` (double)
+      
+      assert( ismatrix(obj.data), ['Data in the object must be an MxN' ...
+        , ' matrix of M trials by N time samples.'] );
+      factor = obj.fs / new_fs;
+      assert( factor > 1 && round(factor) == factor, ['The new sampling rate' ...
+        , ' (%0.2f) is not an integer factor of the original sampling rate (%0.2f)'] ...
+        , new_fs, obj.fs );
+      newdata = [];
+      for i = 1:size( obj.data, 1 )
+        newdata(i, :) = downsample( obj.data(i, :), factor );
+      end
+      obj.data = newdata;
+      obj.fs = new_fs;
     end
     
     %{
@@ -460,6 +520,22 @@ classdef SignalContainer < Container
       obj = freq_mean( obj, freq );
     end
     
+    function obj_ = row_op(obj, varargin)
+      
+      %   ROW_OP -- Overloaded row-operations method which acts on the
+      %     fields of `trial_stats` in addition to the data in the object.
+      %
+      %     See `help Container/row_op` for more information.
+      
+      obj_ = row_op@Container( obj, varargin{:} );
+      func = varargin{1};
+      varargin(1) = [];
+      trial_stats = obj.trial_stats;
+      trial_stats = structfun( @(x) func(x, varargin{:}), trial_stats ...
+        , 'un', false );
+      obj_.trial_stats = trial_stats;
+    end
+    
     %{
         ANALYSIS
     %}
@@ -476,6 +552,10 @@ classdef SignalContainer < Container
       %         same number of rows as the first object.
       %       - `varargin` (/any/) -- Various additional parameters. See
       %         obj.params.
+      %     OUT:
+      %       - `coh` (cell array) -- Array of M frequencies x N trial
+      %         coherence values
+      %       - `f` (double) -- Vector of frequencies.
       
       assert__capable_of_coherence( obj, B );
       params = obj.params;  %#ok<*PROPLC>
@@ -500,6 +580,46 @@ classdef SignalContainer < Container
      end
     end
     
+    function [coh, f] = sfcoherence(obj, B, varargin)
+      
+      %   SFCOHERENCE -- Obtain trial-wise spike-field coherence estimates.
+      %
+      %     [coh, f] = sfcoherence(A, B) calculates the coherence between
+      %     spiking data in A and continuous data in B.
+      %
+      %     IN:
+      %       - `B` (SignalContainer) -- Second trial-set. Must have the
+      %         same number of rows as the first object.
+      %       - `varargin` (/any/) -- Various additional parameters. See
+      %         obj.params.
+      %     OUT:
+      %       - `coh` (cell array) -- Array of M frequencies x N trial
+      %         coherence values
+      %       - `f` (double) -- Vector of frequencies.
+      
+      assert__capable_of_sfcoherence( obj, B );
+      params = obj.params;  %#ok<*PROPLC>
+      params = parsestruct( params, varargin );
+      A = windowed_data( obj );
+      B = windowed_data( B );
+      coh = cell( 1, numel(A) );
+      for i = 1:numel(A)
+        a = dsp2.process.format.to_struct_times( A{i}, obj.fs );
+        b = B{i}';
+        switch ( params.coherenceType )
+          case 'chronux'
+            params.chronux_params.Fs = obj.fs;
+            [C,~,~,~,~,f] = coherencycpt( b, a, params.chronux_params );
+          otherwise
+            error( ['No spike-field coherence procedure has been defined for' ...
+              , ' ''%s''.'], params.coherenceType );
+        end
+        if ( size(C, 1) == 1 ), C = C'; end;
+        if ( size(f,1) < size(f,2) ), f = f'; end;        
+        coh{i} = C;
+     end
+    end
+    
     function [pow, w] = raw_power(obj, varargin)
       
       %   RAW_POWER -- Obtain trial-wise spectral-power estimates for the
@@ -511,6 +631,10 @@ classdef SignalContainer < Container
       %     IN:
       %       - `varargin` (/any/) -- Various additional parameters. See
       %         obj.params.
+      %     OUT:
+      %       - `pow` (cell array) -- Array of M frequencies x N trial
+      %         power values
+      %       - `f` (double) -- Vector of frequencies.
       
       assert( isequal(obj.dtype, 'double'), ['Signals must be stored in' ...
         , ' a regular double matrix; were of class ''%s'''], obj.dtype );
@@ -553,6 +677,10 @@ classdef SignalContainer < Container
       %         of rows as `obj`.
       %       - `varargin` (/any/) -- Various additional parameters to
       %         overwrite those in obj.params
+      %     OUT:
+      %       - `pow` (cell array) -- Array of M frequencies x N trial
+      %         power values
+      %       - `w` (double) -- Vector of frequencies.
       
       assert__capable_of_norm_power( obj, B );
       [own, w] = raw_power( obj, varargin{:} );
@@ -576,6 +704,202 @@ classdef SignalContainer < Container
     end
     
     %{
+        RUN ANALYSES
+    %}
+    
+    function obj = run_raw_power(obj, varargin)
+      
+      %   RUN_RAW_POWER -- Convert the signal data in the object to time x
+      %     frequency data.
+      %
+      %     IN:
+      %       - `obj` (SignalContainer) -- Object whose data are an MxN
+      %         matrix of M trials by N voltage samples.
+      %       - `varargin` (/any/) -- Any additional inputs to be passed to
+      %         the raw_power() method.
+      %     OUT:
+      %       - `obj` (SignalContainer) -- Object whose data are an MxNxP
+      %         matrix of M trials, N frequencies, and P time-bins.
+      
+      [pow, f] = raw_power( obj, varargin{:} );
+      pow = SignalContainer.get_trial_by_time_double( pow );
+      obj.data = pow;
+      obj = update_frequencies( obj, f(:, 1) );
+    end
+    
+    function obj = run_normalized_power(obj, obj2, varargin)
+      
+      %   RUN_NORMALIZED_POWER -- Normalize the power of the data in `obj`
+      %     by the power of the data in `obj2`.
+      %
+      %     IN:
+      %       - `obj` (SignalContainer) -- SignalContainer object whose
+      %         data are an MxN matrix of M trials by N voltage samples.
+      %         The to-be-normalized data.
+      %       - `obj2` (SignalContainer) -- SignalContainer object whose
+      %         data are an MxN matrix of M trials by N voltage samples.
+      %         The normalizing data.
+      %     OUT:
+      %       - `to_norm` (SignalContainer) -- Normalized object.
+      
+      [pow, f] = norm_power( obj, obj2, varargin{:} );
+      mins = min( [obj.trial_stats.min, obj2.trial_stats.min], [], 2 );
+      maxs = max( [obj.trial_stats.max, obj2.trial_stats.max], [], 2 );
+      %   get actual normalized power
+      pow = SignalContainer.get_trial_by_time_double( pow );
+      obj.data = pow;
+      obj = update_frequencies( obj, f(:, 1) );
+      obj.trial_stats.range = ...
+        max( [obj.trial_stats.range, obj2.trial_stats.range], [], 2 );
+      obj.trial_stats.min = mins;
+      obj.trial_stats.max = maxs;
+    end
+    
+    function store = run_coherence(obj, varargin)
+      
+      %   RUN_COHERENCE -- Calculate coherence between BLA and ACC,
+      %     per-day / session.
+      %
+      %     IN:
+      %       - `varargin` (/any/) -- Additional ('name', value) pair
+      %       	arguments to be passed to coherece( obj )
+      %     OUT:
+      %       - `store` (SignalContainer) -- SignalContainer object whose
+      %         regions field is 'bla', and whose data are an MxNxP matrix
+      %         of M trials, N frequencies, and P time bins.
+      
+      reg1_ind = strcmp( varargin, 'reg1' );
+      reg2_ind = strcmp( varargin, 'reg2' );
+      to_rm = false( size(varargin) );
+      err_msg = 'Expected the region to follow the reg selector.';
+      if ( any(reg1_ind) )
+        reg1_ind = find( reg1_ind );
+        assert( reg1_ind+1 <= numel(varargin), err_msg );
+        reg1 = varargin{ reg1_ind+1 };
+        to_rm( reg1_ind:reg1_ind+1 ) = true;
+      else
+        reg1 = 'bla';
+      end
+      if ( any(reg2_ind) )
+        reg2_ind = find( reg2_ind );
+        assert( reg2_ind+1 <= numel(varargin), err_msg );
+        reg2 = varargin{ reg2_ind+1 };
+        to_rm( reg2_ind:reg2_ind+1 ) = true;
+      else
+        reg2 = 'acc';
+      end
+      varargin( to_rm ) = [];
+      assert( ndims(obj.data) == 2, ['Expected the data to be a 2-d trials' ...
+        , ' x samples matrix.'] );
+%       obj = filter( obj );
+%       obj = update_range( obj );
+%       obj = update_min( obj );
+%       obj = update_max( obj );
+      days = flat_uniques( obj.labels, 'days' );
+      store = Container();
+      for i = 1:numel(days)
+        fprintf( '\n - Processing day %d of %d', i, numel(days) );
+        bla = only( obj, {reg1, days{i}} );
+        acc = only( obj, {reg2, days{i}} );  
+        bla_channels = flat_uniques( bla.labels, 'channels' );
+        acc_channels = flat_uniques( acc.labels, 'channels' );
+        product = allcomb( {bla_channels, acc_channels} );
+        for k = 1:size( product, 1 )
+          fprintf( '\n\t - Processing channel combination %d of %d' ...
+            , k, size(product, 1) );
+          one_bla = only( bla, product{k, 1} );
+          one_acc = only( acc, product{k, 2} );
+          assert( shape(one_bla, 1) == shape(one_acc, 1), 'Sizes do not match' );
+          [coh, freqs] = coherence( one_bla, one_acc, varargin{:} );
+          arr = SignalContainer.get_trial_by_time_double( coh );
+%           one_bla = update_min( update_max(one_bla) );
+%           one_acc = update_min( update_max(one_acc) );
+          mins = min( [one_bla.trial_stats.min, one_acc.trial_stats.min], [], 2 );
+          maxs = max( [one_bla.trial_stats.max, one_acc.trial_stats.max], [], 2 );
+          one_bla.data = arr;
+          one_bla.trial_stats.min = mins;
+          one_bla.trial_stats.max = maxs;
+          site_str = [ 'site__' num2str(k) ];
+          if ( ~one_bla.labels.contains_fields('sites') )
+            one_bla = one_bla.add_field( 'sites', site_str );
+          else
+            one_bla.labels = one_bla.labels.set_field( 'sites', site_str );
+          end
+          bla_range = one_bla.trial_stats.range;
+          acc_range = one_acc.trial_stats.range;
+          one_bla.trial_stats.range = max( [bla_range, acc_range], [], 2 );
+          store = append( store, one_bla );
+        end
+      end
+      store = update_frequencies( store, freqs(:, 1) );
+      reg_names = strjoin( {reg1, reg2}, '_' );
+      store.labels = store.labels.set_field( 'regions', reg_names );
+    end
+    
+    function store = run_sfcoherence(obj, signals, varargin)
+      
+      %   RUN_SFCOHERENCE -- Calculate spike-field coherence between
+      %     regions.
+      %
+      %     IN:
+      %       - `varargin` (/any/) -- Additional ('name', value) pair
+      %       	arguments to be passed to sfcoherece( obj )
+      %     OUT:
+      %       - `store` (SignalContainer) -- SignalContainer object whose
+      %         regions field is 'bla', and whose data are an MxNxP matrix
+      %         of M trials, N frequencies, and P time bins.
+      
+      spike_regions = flat_uniques( obj.labels, 'regions' );
+      signal_regions = flat_uniques( signals.labels, 'regions' );
+      assert( numel(spike_regions) == 1 && numel(signal_regions) == 1 ...
+        , 'More than one region was present in the spiking or continuous data.' );
+      reg_names = strjoin( {spike_regions{1}, signal_regions{1}}, '_' );
+      store = Container();
+      days = flat_uniques( obj.labels, 'days' );
+      for k = 1:numel(days)
+        extr_spikes = only( obj, days{k} );
+        extr_signals = only( signals, days{k} );
+        one_day = per_day( extr_spikes, extr_signals, varargin{:} );
+        store = append( store, one_day );
+      end
+      store.labels = store.labels.set_field( 'regions', reg_names );
+      store.dtype = class( store.data );
+      
+      function store = per_day(spikes, signals, varargin)
+        spike_chans = flat_uniques( spikes.labels, 'channels' );
+        signal_chans = flat_uniques( signals.labels, 'channels' );
+        all_chans = allcomb( {spike_chans, signal_chans} );
+        store = cell(1, size(all_chans, 1) );
+        freqs = cell( size(store) );
+        parfor i = 1:size(all_chans, 1)
+          spike_chan = all_chans{i, 1};
+          signal_chan = all_chans{i, 2};
+          spike = only( spikes, spike_chan );
+          signal = only( signals, signal_chan );
+          assert( shape(spike, 1) == shape(signal, 1), ['Shapes of' ...
+            , ' spikes and continuous data must match.'] );
+          [coh, freqs{i}] = sfcoherence( spike, signal, varargin{:} );
+          coh = SignalContainer.get_trial_by_time_double( coh );
+          mins = min( [spike.trial_stats.min, signal.trial_stats.min], [], 2 );
+          maxs = max( [spike.trial_stats.max, signal.trial_stats.max], [], 2 );
+          spike.data = coh;
+          spike.trial_stats.min = mins;
+          spike.trial_stats.max = maxs;
+          site_str = [ 'site__' num2str(i) ];
+          spike = require_fields( spike, 'sites' );
+          spike.labels = set_field( spike.labels, 'sites', site_str );
+          spike_range = spike.trial_stats.range;
+          signal_range = signal.trial_stats.range;
+          spike.trial_stats.range = max( [spike_range, signal_range], [], 2 );
+          store{i} = spike;
+        end
+        store = extend( store{:} );
+        freqs = freqs{1};
+        store = update_frequencies( store, freqs(:, 1) );
+      end
+    end
+    
+    %{
         INTER-OBJECT COMPATIBILITY
     %}
     
@@ -594,6 +918,28 @@ classdef SignalContainer < Container
       tf = false;
       if ( ~isa(B, 'SignalContainer') ), return; end;
       tf = isequal( get_time_props(obj), get_time_props(B) );
+    end
+    
+    function tf = window_props_match(obj, B)
+      
+      %   WINDOW_PROPS_MATCH -- True if the start, stop, window-size, and 
+      %     step-sizes match between objects.
+      %
+      %     IN:
+      %       - `B` (/any/) -- Values to test. Returns false if `B` is not
+      %         a SignalContainer.
+      %     OUT:
+      %       - `tf` (logical) |SCALAR| -- True if the time-properties
+      %         match between objects.
+      
+      tf = false;
+      if ( ~isa(B, 'SignalContainer') ), return; end;
+      a_props = get_time_props( obj );
+      b_props = get_time_props( B );
+      %   remove sample rate
+      a_props(end) = [];
+      b_props(end) = [];
+      tf = isequal( a_props, b_props );
     end
     
     %{
@@ -764,6 +1110,44 @@ classdef SignalContainer < Container
       obj = SignalObject( new, obj.fs, obj.start:obj.step_size:obj.stop );      
     end
     
+    function obj = only_matching(obj, B, fields, labs)
+      
+      %   ONLY_MATCHING -- Only retain labels that are present in a
+      %     second object.
+      %
+      %     IN:
+      %       - `B` (SignalContainer, Container) -- Object to match.
+      %       - `fields` (cell array of strings, char) -- Fields from which
+      %         to draw labels to match.
+      %       - `labs` (cell array of strings) |OPTIONAL| -- Optionally
+      %         specify the label combinations to match. Must be an MxN
+      %         cell array of M string-combinations in N fields (as e.g.
+      %         returned by `combs()`).
+      %     OUT:
+      %       - `matched` (Container, SignalContainer) -- Object containing
+      %         only the labels in the `fields` of `B`.
+      
+      Assertions.assert__isa( B, 'Container' );
+      fields = Labels.ensure_cell( fields );
+      if ( nargin < 4 ), labs = combs( obj, fields ); end
+      labs = Labels.ensure_cell( labs );
+      Assertions.assert__is_cellstr( fields );
+      Assertions.assert__is_cellstr( labs );
+      assert__contains_fields( obj.labels, fields );
+      assert__contains_fields( B.labels, fields );
+      assert( numel(fields) == size(labs, 2), ['The number of fields' ...
+        , ' must match the number of columns of labels. Expected labels' ...
+        , ' to have %d columns; %d were present.'], numel(fields) ...
+        , size(labs, 2) );
+      for i = 1:size(labs, 1)
+        ind_b = where( B, labs(i, :) );
+        if ( ~any(ind_b) )
+          ind_a = where( obj, labs(i, :) );
+          obj = keep( obj, ~ind_a );
+        end
+      end
+    end
+    
     function matched = match(obj, B)
       
       %   MATCH -- Match the contents of a Container to the current
@@ -809,6 +1193,24 @@ classdef SignalContainer < Container
       end
     end
     
+    function obj = nanmedian(obj, dim)
+      
+      %   NANMEDIAN -- Return an object whose data are a median across a 
+      %     given dimension, excluding NaN.
+      %
+      %     IN:
+      %       - `dim` (double) |OPTIONAL| -- Dimension specifier. Defaults
+      %         to 1.
+      %
+      %     See also Container/row_op, Container/n_dimension_op
+      
+      if ( nargin < 2 ), dim = 1; end;
+      if ( isequal(dim, 1) )
+        obj = row_op( obj, @nanmedian, 1 );
+      else obj = n_dimension_op( obj, @nanmedian, dim );
+      end
+    end
+    
     %{
         PROPERTY SETTING
     %}
@@ -851,6 +1253,22 @@ classdef SignalContainer < Container
       mins = min( data, [], 2 );
       maxs = max( data, [], 2 );
       obj.trial_stats.range = maxs - mins;
+      assert__properly_dimensioned_trial_stats( obj, obj.trial_stats );
+    end
+    
+    function obj = update_min(obj)
+      
+      %   UPDATE_MIN -- Update the `min` field of trial_stats struct.
+      
+      obj.trial_stats.min = min( obj.data, [], 2 );
+      assert__properly_dimensioned_trial_stats( obj, obj.trial_stats );
+    end
+    
+    function obj = update_max(obj)
+      
+      %   UPDATE_MAX -- Update the `max` field of trial_stats struct.
+      
+      obj.trial_stats.max = max( obj.data, [], 2 );
       assert__properly_dimensioned_trial_stats( obj, obj.trial_stats );
     end
     
@@ -930,68 +1348,6 @@ classdef SignalContainer < Container
     %{
         PLOTS
     %}
-    
-    function h = bar(obj, within, bar_category, group_by, varargin)
-      
-      params = struct( ...
-          'shape', [] ...
-        , 'yLim', [] ...
-        , 'xLim', [] ...
-        , 'xLabel', [] ...
-        , 'yLabel', [] ...
-      );
-      params = parsestruct( params, varargin );
-      vec_msg = 'The data in the object must be a one-dimensional vector';
-      assert( ndims(obj.data) == 2 && isvector(obj.data), vec_msg );
-      assert( isa(bar_category, 'char'), ['Only one bar-category can be' ...
-        , ' specified, and must be specified as a char; was a ''%s'''] ...
-        , class(bar_category) );
-      if ( isempty(within) )
-        inds = { true(shape(obj, 1), 1) };
-        within = field_names( obj );
-      else inds = get_indices( obj, within );
-      end
-      if ( isempty(params.shape) )
-        params.shape = [1, numel(inds)];
-      else
-        assert( params.shape(1)*params.shape(2) >= numel(inds), ['When specifying' ...
-          , ' dimensions for the subplot, the number of rows * number of columns' ...
-          , ' must be greater than or equal to the number of unique' ...
-          , ' combinations. The minimum for this label-set is %d'] ...
-          , numel(inds) );
-      end
-      labs = unique( get_fields(obj.labels, bar_category) );
-      for i = 1:numel(inds)
-        extr = keep( obj, inds{i} );
-        title_unqs = strjoin( flat_uniques(extr.labels, within), ' | ' );
-        [group_inds, group_combs] = get_indices( extr, group_by );
-        means = nan( numel(labs), numel(group_inds) );
-        errors = nan( size(means) );
-        legend_items = cell( 1, numel(group_inds) );
-        for k = 1:numel(group_inds)
-          extr_group = keep( extr, group_inds{k} );
-          for j = 1:numel(labs)
-            extr_lab = only( extr_group, labs{j} );
-            if ( isempty(extr_lab) ), continue; end;
-            means(j, k) = mean( extr_lab.data );
-            errors(j, k) = SEM( extr_lab.data );
-          end
-          legend_items{k} = strjoin( group_combs(k, :), ' | ' );
-        end
-        subplot( params.shape(1), params.shape(2), i );
-        h = barwitherr( errors, means );
-        set( gca, 'xtick', 1:numel(labs) );
-        set( gca, 'xticklabel', labs );
-        current_axis = gca;
-        current_axis.XTickLabelRotation = 60;
-        title( title_unqs );
-        legend( legend_items );
-        if ( ~isempty(params.xLim) ), xlim( params.xLim ); end;
-        if ( ~isempty(params.yLim) ), ylim( params.yLim ); end;
-        if ( ~isempty(params.xLabel) ), xlabel( params.xLabel); end;
-        if ( ~isempty(params.yLabel) ), ylabel( params.yLabel ); end;
-      end
-    end
     
     function h = scatter(obj, B, within, varargin)
       
@@ -1269,6 +1625,7 @@ classdef SignalContainer < Container
           labels = [ labels{:} ];
           title_str = strjoin( labels, ' | ' );
           title_str = strrep( title_str, '__', ' ' );
+          title_str = strrep( title_str, '_', ' ' );
           title( title_str );
         end
         if ( contains_fields(extr.labels, 'epochs') )
@@ -1368,7 +1725,16 @@ classdef SignalContainer < Container
       assert( isa(B, 'SignalContainer'), ['Expected a SignalContainer as input;' ...
         , ' was a ''%s'''], class(B) );
       assert( time_props_match(obj, B), ['Time properties do not match between' ...
-        , 'objects'] );
+        , ' objects'] );
+    end
+    
+    function assert__window_props_match(obj, B)
+      
+      %   ASSERT__WINDOW_PROPS_MATCH -- Ensure start, stop, window_size,
+      %     and step_size properties are equivalent.
+      
+      assert( window_props_match(obj, B), ['Window properties do not match' ...
+        , ' between objects.'] );
     end
     
     function assert__capable_of_coherence(obj, B)
@@ -1387,6 +1753,26 @@ classdef SignalContainer < Container
       assert( isequal(obj.dtype, 'double'), ['Signals must be stored in a plain' ...
         , ' matrix'] );
       assert__time_props_match( obj, B );      
+    end
+    
+    function assert__capable_of_sfcoherence(obj, B)
+      
+      %   ASSERT__CAPABLE_OF_SFCOHERENCE -- Ensure two SignalContainers are
+      %     compatible with a spike-field coherence analysis
+      %
+      %     IN:
+      %       - B (/ANY/) -- Values to test.
+      
+      assert( isa(B, 'SignalContainer'), ['Expected a SignalContainer as input;' ...
+        , ' was a ''%s'''], class(B) );
+      assert( shape(obj, 1) == shape(B, 1), ['The shapes of the two' ...
+        , ' containers must match'] );
+      assert( strcmp(obj.dtype, 'logical'), ['The spiking data in' ...
+        , ' the first object must be a logical PSTH matrix; was a ''%s''.'] ...
+        , obj.dtype );
+      assert( strcmp(B.dtype, 'double'), ['The continuous data must be' ...
+        , ' a double matrix; was a ''%s''.'], B.dtype );
+      assert__window_props_match( obj, B );  
     end
     
     function assert__capable_of_norm_power(obj, B)

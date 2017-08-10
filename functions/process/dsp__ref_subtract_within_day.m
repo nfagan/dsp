@@ -1,5 +1,11 @@
 function others = dsp__ref_subtract_within_day( obj )
 
+%   REFERENCE_SUBTRACT_WITHIN_DAY -- For each day, subtract the ref
+%     electrode trace from each additional channel.
+%
+%     IN:
+%       - `obj` (SignalContainer)
+
 if ( isa(obj, 'SignalObject') )
   fs = obj.fs; time = obj.time; obj = obj.to_container(); convert_back = true;
 else convert_back = false;

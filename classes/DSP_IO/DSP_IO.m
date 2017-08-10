@@ -195,6 +195,7 @@ classdef DSP_IO < handle
       end
       stp = 1;
       labels = SparseLabels();
+      first_iteration = true;
       old_way = Container();
       for i = 1:numel(names)
         fprintf( '\n - Processing folder ''%s'' (%d of %d)', names{i}, i, numel(names) );
@@ -242,7 +243,10 @@ classdef DSP_IO < handle
             %   update trial_ids
             trial_ids(stp:stp+current_n_rows-1) = current.trial_ids;
           end
+          current.labels = current.labels.columnize();
+          labels = labels.columnize();
           labels = labels.append( current.labels );
+          labels = labels.columnize();
           stp = stp + current_n_rows;
           %   call refresh() to create a newly-constructed object from the
           %   current properties in current.one.
