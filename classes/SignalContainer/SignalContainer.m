@@ -770,11 +770,13 @@ classdef SignalContainer < Container
       
       reg1_ind = strcmp( varargin, 'reg1' );
       reg2_ind = strcmp( varargin, 'reg2' );
+      cmb_ind = strcmp( varargin, 'combs' );
       to_rm = false( size(varargin) );
-      err_msg = 'Expected the region to follow the reg selector.';
+      err_msg = 'Expected the %s to follow the %s selector.';
+      manual_combs = false;
       if ( any(reg1_ind) )
         reg1_ind = find( reg1_ind );
-        assert( reg1_ind+1 <= numel(varargin), err_msg );
+        assert( reg1_ind+1 <= numel(varargin), err_msg, 'region', 'reg' );
         reg1 = varargin{ reg1_ind+1 };
         to_rm( reg1_ind:reg1_ind+1 ) = true;
       else
@@ -782,19 +784,23 @@ classdef SignalContainer < Container
       end
       if ( any(reg2_ind) )
         reg2_ind = find( reg2_ind );
-        assert( reg2_ind+1 <= numel(varargin), err_msg );
+        assert( reg2_ind+1 <= numel(varargin), err_msg, 'region', 'reg' );
         reg2 = varargin{ reg2_ind+1 };
         to_rm( reg2_ind:reg2_ind+1 ) = true;
       else
         reg2 = 'acc';
       end
+      if ( any(cmb_ind) )
+        cmb_ind = find( cmb_ind );
+        assert( cmb_ind+1 <= numel(varargin), err_msg );
+        cmbs = varargin{ cmb_ind+1 };
+        assert( iscellstr(cmbs), 'Combinations must be a cell array of strings.' );
+        to_rm( cmb_ind:cmb_ind+1 ) = true;
+        manual_combs = true;
+      end
       varargin( to_rm ) = [];
       assert( ndims(obj.data) == 2, ['Expected the data to be a 2-d trials' ...
         , ' x samples matrix.'] );
-%       obj = filter( obj );
-%       obj = update_range( obj );
-%       obj = update_min( obj );
-%       obj = update_max( obj );
       days = flat_uniques( obj.labels, 'days' );
       store = Container();
       for i = 1:numel(days)
@@ -803,7 +809,11 @@ classdef SignalContainer < Container
         acc = only( obj, {reg2, days{i}} );  
         bla_channels = flat_uniques( bla.labels, 'channels' );
         acc_channels = flat_uniques( acc.labels, 'channels' );
-        product = allcomb( {bla_channels, acc_channels} );
+        if ( ~manual_combs )
+          product = allcomb( {bla_channels, acc_channels} );
+        else
+          product = cmbs;
+        end
         for k = 1:size( product, 1 )
           fprintf( '\n\t - Processing channel combination %d of %d' ...
             , k, size(product, 1) );
@@ -812,8 +822,6 @@ classdef SignalContainer < Container
           assert( shape(one_bla, 1) == shape(one_acc, 1), 'Sizes do not match' );
           [coh, freqs] = coherence( one_bla, one_acc, varargin{:} );
           arr = SignalContainer.get_trial_by_time_double( coh );
-%           one_bla = update_min( update_max(one_bla) );
-%           one_acc = update_min( update_max(one_acc) );
           mins = min( [one_bla.trial_stats.min, one_acc.trial_stats.min], [], 2 );
           maxs = max( [one_bla.trial_stats.max, one_acc.trial_stats.max], [], 2 );
           one_bla.data = arr;
