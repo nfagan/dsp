@@ -1554,6 +1554,7 @@ classdef SignalContainer < Container
         , 'freqLabelStep', 10 ...
         , 'fullScreen', false ...
         , 'rectangle', [] ...
+        , 'linesEvery', [] ...
       );
 
       params = parsestruct( params, varargin );
@@ -1667,6 +1668,16 @@ classdef SignalContainer < Container
             rect_h = rect_freqs(2) - rect_freqs(1);
             rectangle( 'Position', [rect_x, rect_y, rect_w, rect_h] );
           end
+        end
+        if ( ~isempty(params.linesEvery) )
+          lines_every = params.linesEvery;
+          line_xs = lines_every(1):lines_every(2):numel(time);
+          ylims = get( gca, 'ylim' );
+          line_ys = repmat( ylims(:), 1, numel(line_xs) );
+          line_xs = [ line_xs(:)'; line_xs(:)' ];
+          hold on;
+          plot( line_xs, line_ys, 'w' );
+          hold off;
         end
       end        
       if ( params.fullScreen )
