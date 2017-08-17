@@ -977,6 +977,21 @@ classdef SignalContainer < Container
       end
     end
     
+    function obj = make_column(obj)
+      
+      %   MAKE_COLUMN -- Convert the data in the object to a column
+      %     vector, and repeat labels to match.
+      %
+      %     Used in obj(:);
+      
+      s = size( obj.data );
+      n_repeats = prod( s(2:end) );
+      obj.data = obj.data(:);
+      obj.labels = repeat( obj.labels, n_repeats );
+      obj.trial_stats = structfun( @(x) repmat(x, n_repeats, 1) ...
+        , obj.trial_stats, 'un', false );
+    end
+    
     %{
         OPERATIONS
     %}
