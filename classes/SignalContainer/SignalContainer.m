@@ -534,6 +534,46 @@ classdef SignalContainer < Container
       trial_stats = structfun( @(x) func(x, varargin{:}), trial_stats ...
         , 'un', false );
       obj_.trial_stats = trial_stats;
+      obj_.trial_ids = NaN;
+    end
+    
+    function [obj, inds, cmbs] = for_each_1d(obj, varargin)
+      
+      %   FOR_EACH_1D -- Execute a function that collapses data across the
+      %     first dimension, for each combination of labels.
+      %
+      %     This overloaded method also performs the function on each field
+      %     of `obj.trial_stats`.
+      %
+      %     See also Container/for_each_1d
+      %
+      %     IN:
+      %       - `within` (cell array of strings, char)
+      %       - `func` (function_handle)
+      %       - `varargin` (cell array) |OPTIONAL|
+      %     OUT:
+      %       - `obj` (Container)
+      %       - `inds` (cell array of logical)
+      %       - `cmbs` (cell array of strings)
+      
+      trial_stats = obj.trial_stats;
+      [obj, inds, cmbs] = for_each_1d@Container( obj, varargin{:} );
+      func = varargin{2};
+      varargin(1:2) = [];
+      fs = fieldnames( trial_stats );
+      new_stats = trial_stats;
+      new_ids = nan( numel(inds), 1 );
+      for i = 1:numel(fs)
+        colons = repmat( {':'}, 1, ndims(new_stats.(fs{i}))-1 );
+        szs = size( new_stats.(fs{i}) );
+        new_stats.(fs{i}) = zeros( [numel(inds), szs(2:end)] );
+        for k = 1:numel(inds)
+          inp = trial_stats.(fs{i})(inds{k});
+          new_stats.(fs{i})(k, colons{:}) = func( inp, varargin{:} );
+        end
+      end
+      obj.trial_stats = new_stats;
+      obj.trial_ids = new_ids;
     end
     
     %{
@@ -1959,5 +1999,51 @@ classdef SignalContainer < Container
         end
       end
     end
+    
+    function catted = concat(arr)
+      
+      %   CONCAT -- Concatenate a cell array of SignalContainer objects.
+      %
+      %     IN:
+      %       - `arr` (cell array of Container or SignalContainer objects, {})
+      %     OUT:
+      %       - `catted` (SignalContainer, Container, {})
+      
+      catted = Container.concat( arr );
+      if ( isempty(catted) ), return; end
+      cls = class( arr{1} );
+      if ( strcmp(cls, 'Container') ), return; end
+      assert( strcmp(cls, 'SignalContainer'), ['Function is not yet' ...
+        , ' defined for Containers of subclass ''%s''.'], cls );
+      if ( numel(arr) == 1 )
+        catted.trial_ids = arr{1}.trial_ids;
+        catted.trial_stats = arr{1}.trial_stats;
+        return;
+      end
+      %   ensure trial stat fields are equivalent
+      stat_fs = cellfun( @(x) fieldnames(x.trial_stats), arr, 'un', false );
+      assert( isequal(stat_fs{:}), 'Trial stat fields must be equal.' );
+      stat_fs = stat_fs{1};
+      trial_stats = struct();
+      first = arr{1};
+      N = shape( catted, 1 );
+      for i = 1:numel(stat_fs)
+        curr_stat = first.trial_stats.(stat_fs{i});
+        stat_sz = size( curr_stat );
+        trial_stats.(stat_fs{i}) = zeros( [N, stat_sz(2:end)], 'like', curr_stat );
+      end
+      trial_ids = zeros( N, 1 );
+      stp = 1;
+      for i = 1:numel(arr)
+        n = size( arr{i}.data, 1 );
+        for k = 1:numel(stat_fs)
+          trial_stats.(stat_fs{k})(stp:stp+n-1, :) = arr{i}.trial_stats.(stat_fs{k});
+        end
+        trial_ids( stp:stp+n-1 ) = arr{i}.trial_ids;
+        stp = stp + n;
+      end
+      catted.trial_ids = trial_ids;
+      catted.trial_stats = trial_stats;
+    end    
   end
 end
