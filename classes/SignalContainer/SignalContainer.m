@@ -92,6 +92,21 @@ classdef SignalContainer < Container
       obj = keep_trial_stats( obj, ind );
     end
     
+    function obj = one(obj)
+      
+      %   ONE -- Retain one row of the object.
+      %
+      %     See also Container/one
+      %
+      %     OUT:
+      %       - `obj` (SignalContainer)
+      
+      obj = one@Container( obj );
+      obj.trial_stats = structfun( @(x) nan(1, size(x, 2)), obj.trial_stats ...
+        , 'un', false );
+      obj.trial_ids = NaN;
+    end
+    
     function [obj, ind] = remove(obj, selectors)
       
       %   REMOVE -- Remove elements identified by the labels in selectors.
