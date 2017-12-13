@@ -25,8 +25,13 @@ classdef SignalContainer < Container
   
   methods
     function obj = SignalContainer( data, labels, fs, start_stop, window, trial_ids, freqs )
+      if ( nargin == 1 )
+        assert( isa(data, 'Container'), 'Unknown single input type ''%s''.', class(data) );
+        labels = data.labels;
+        data = data.data;
+      end
       obj = obj@Container( data, labels );
-      if ( nargin == 2 )
+      if ( nargin == 2 || nargin == 1 )
         obj.trial_ids = (1:size(data, 1))';
         stat_fields = fieldnames( obj.trial_stats );
         for k = 1:numel(stat_fields)
@@ -887,6 +892,10 @@ classdef SignalContainer < Container
             one_bla = one_bla.add_field( 'sites', site_str );
           else
             one_bla.labels = one_bla.labels.set_field( 'sites', site_str );
+          end
+          if ( manual_combs )
+            one_bla.labels = ...
+              one_bla.labels.set_field( 'channels', strjoin(product(k, :), '_') );
           end
           bla_range = one_bla.trial_stats.range;
           acc_range = one_acc.trial_stats.range;
